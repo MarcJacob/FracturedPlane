@@ -1,0 +1,24 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "FPCoreLibrary",
+	"Description": "Contains Common code that exists both on Client and Server programs, mostly for Net communications.",
+	"Category": "Other",
+	"CreatedBy": "Marc Jacob",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "FPCoreLibrary",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}
