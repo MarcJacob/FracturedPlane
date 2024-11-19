@@ -76,5 +76,6 @@ FracturedPlaneUE/DerivedDataCache/*
 
 # Server local files
 FracturedPlaneServer/*
+!FracturedPlaneServer/Sources/
 !FracturedPlaneServer/Sources/*
 !*.bat
