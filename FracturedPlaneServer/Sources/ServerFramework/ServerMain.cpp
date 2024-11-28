@@ -1,15 +1,15 @@
 ﻿// Server_Main.cpp
 // Main entry points for Server execution, called by Platform main thread.
 
-#include "FPCore/Net/Packet.h"
+#include "FPCore/Net/Packet/Packet.h"
 #include "ServerPlatform.h"
 #include "Server.h"
 #include "iostream"
 
-void NetPacketReceptionTable_t::AssignHandler(FPCore::Net::PacketType PacketType, NetPacketReceptionHandlerFunc Handler, void* Context)
+void NetPacketReceptionTable_t::AssignHandler(FPCore::Net::PacketBodyType PacketType, NetPacketReceptionHandlerFunc Handler, void* Context)
 {
     int PacketTypeIndex = static_cast<int>(PacketType);
-    if (PacketTypeIndex < 0 || PacketType >= FPCore::Net::PacketType::PACKET_TYPE_COUNT)
+    if (PacketTypeIndex < 0 || PacketType >= FPCore::Net::PacketBodyType::PACKET_TYPE_COUNT)
     {
         std::cerr << "Error: Attempted to assign a handler to an invalid Packet Type value !\n";
         return;
@@ -24,11 +24,11 @@ void NetPacketReceptionTable_t::AssignHandler(FPCore::Net::PacketType PacketType
     PacketReceptionHandlers[PacketTypeIndex] = { Context, Handler };
 }
 
-void NetPacketReceptionTable_t::HandlePacket(FPCore::Net::Packet& Packet)
+void NetPacketReceptionTable_t::HandlePacket(FPCore::Net::PacketHead& Packet)
 {
-    int PacketTypeIndex = static_cast<int>(Packet.Type);
+    int PacketTypeIndex = static_cast<int>(Packet.BodyType);
 
-    if (PacketTypeIndex >= 0 && PacketTypeIndex < static_cast<int>(FPCore::Net::PacketType::PACKET_TYPE_COUNT))
+    if (PacketTypeIndex >= 0 && PacketTypeIndex < static_cast<int>(FPCore::Net::PacketBodyType::PACKET_TYPE_COUNT))
     {
         if (PacketReceptionHandlers[PacketTypeIndex].HandlerFunc != nullptr)
         {
@@ -210,21 +210,21 @@ void UpdateServer(GameServerPtr ServerPtr, const double& DeltaTime)
             do
             {
                 // Decode next packet.
-                FPCore::Net::Packet ReceivedPacket = {};
+                FPCore::Net::PacketHead ReceivedPacket = {};
                 NextPacketAddress = GetNextPacketFromBuffer(NextPacketAddress, ReceptionBufferEnd, ReceivedPacket);
                 if (NextPacketAddress == nullptr)
                 {
                     break;
                 }
 
-                switch (ReceivedPacket.Type)
+                switch (ReceivedPacket.BodyType)
                 {
-                case(FPCore::Net::PacketType::MESSAGE):
+                case(FPCore::Net::PacketBodyType::MESSAGE):
                     // Log received message.
                     std::cout << "Received Message from Connection ID " << ReceivedPacket.ConnectionID << " :'" << static_cast<
-                        const char*>(ReceivedPacket.Data) << "'\n";
+                        const char*>(ReceivedPacket.BodyStart) << "'\n";
                     break;
-                case(FPCore::Net::PacketType::INVALID):
+                case(FPCore::Net::PacketBodyType::INVALID):
                     std::cerr << "Invalid packet type has been received from Connection ID " << ReceivedPacket.ConnectionID <<
                         "! Aborting reception loop.\n";
                     break;

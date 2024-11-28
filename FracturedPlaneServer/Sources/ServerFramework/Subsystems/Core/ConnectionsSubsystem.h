@@ -32,7 +32,7 @@ struct Connection
     float LastReceptionTime; // How long has this connection not sent a message for.
 };
 
-typedef void (*NetPacketReceptionHandlerFunc)(FPCore::Net::Packet& Packet, void* Context);
+typedef void (*NetPacketReceptionHandlerFunc)(FPCore::Net::PacketHead& Packet, void* Context);
 struct RegisteredPacketReceptionHandler
 {
     void* Context;
@@ -42,10 +42,10 @@ struct RegisteredPacketReceptionHandler
 // Wraps an internal table linking every message type to up to one handler function.
 struct NetPacketReceptionTable_t
 {
-    void AssignHandler(FPCore::Net::PacketType PacketType, NetPacketReceptionHandlerFunc Handler, void* Context = nullptr);
-    void HandlePacket(FPCore::Net::Packet& Packet);
+    void AssignHandler(FPCore::Net::PacketBodyType PacketType, NetPacketReceptionHandlerFunc Handler, void* Context = nullptr);
+    void HandlePacket(FPCore::Net::PacketHead& Packet);
     
-    RegisteredPacketReceptionHandler PacketReceptionHandlers[static_cast<int>(FPCore::Net::PacketType::PACKET_TYPE_COUNT)];
+    RegisteredPacketReceptionHandler PacketReceptionHandlers[static_cast<int>(FPCore::Net::PacketBodyType::PACKET_TYPE_COUNT)];
 };
 
 // Server Management Object handling Connections of all kinds.
@@ -63,7 +63,10 @@ struct ConnectionsSubsystem
         size_t WriteBufferSize;
         size_t WrittenBytes; // Number of bytes written since last flush.
     } PacketWriter;
-    
+
+    // Map linking Packet Body Types to their appropriate functions for handling related byte streams.
+    FPCore::Net::PacketBodyFuncMap PacketBodyDefFunctionsMap;
+
     // Initializes the Connections Subsystem, requiring a Memory subsystem to allocate the Active Connections buffer
     // for the specified number of maximum connections we want to handle at once, aswell as a Packet Reception Table
     // so the subsystem may handle authentication request packets.
@@ -82,14 +85,14 @@ struct ConnectionsSubsystem
     
     Connection* GetConnectionFromPlatformSocket(ServerPlatform::ConnectionID SocketID);
 
-    void HandleIncomingPacket(FPCore::Net::Packet& Packet);
+    void HandleIncomingPacket(FPCore::Net::PacketHead& Packet);
     
     // Writes a packet to be sent to the passed Connection ID into the buffer. Requires successful locking of the
     // internal Write Mutex.
     // Returns whether writing was successful.
-    // NOTE: The passed Packet's entire data is copied into the sending buffer, meaning it is safe to free the Packet
-    // after writing.
-    bool WriteOutgoingPacket(const FPCore::Net::Packet& Packet);
+    // NOTE: BodyDef is expected to contain an appropriate BodyDataDef structure associated with the Body Type. Depending on the type of body it
+    // either contains the entirety of the packet body, or its unmarshalled version with pointers to data that need to be copied aswell.
+    bool WriteOutgoingPacket(ServerConnectionID_t DestinationConnectionID, FPCore::Net::PacketBodyType BodyType, void* BodyDefPtr);
     
     // Flushes the internal packed sending buffer to the platform sending buffer, performing appropriate checks and
     // conversions. Returns how many bytes were written.

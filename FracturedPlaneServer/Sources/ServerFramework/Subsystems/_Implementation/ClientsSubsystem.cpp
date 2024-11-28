@@ -3,7 +3,7 @@
 #include <cstring>
 #include <iostream>
 
-#include "FPCore/Net/Packet.h"
+#include "FPCore/Net/Packet/AuthenticationPackets.h"
 #include "ServerFramework/Subsystems/Core/ConnectionsSubsystem.h"
 #include "ServerFramework/Subsystems/Core/MemorySubsystem.h"
 
@@ -28,7 +28,7 @@ bool ClientsSubsystem::Initialize(MemorySubsystem& Memory, size_t MaxClients, Co
     // Link Connections Subsystem
     ServerConnectionsSubsystem = &Connections;
 
-    ServerConnectionsSubsystem->PacketReceptionTable.AssignHandler(FPCore::Net::PacketType::AUTHENTICATION, HandleAuthenticationRequestPacket, this);
+    ServerConnectionsSubsystem->PacketReceptionTable.AssignHandler(FPCore::Net::PacketBodyType::AUTHENTICATION, HandleAuthenticationRequestPacket, this);
 
     OnClientAccountCreatedCallbackTable = {0};
     OnClientConnectedCallbackTable = {0};
@@ -73,7 +73,7 @@ Client* ClientsSubsystem::CreateNewClient(Username_t Name)
     return nullptr;
 }
 
-bool ClientsSubsystem::ProcessAuthenticationRequest(Connection& RequestingConnection, FPCore::Net::PacketData_Authentication& AuthRequestPacket)
+bool ClientsSubsystem::ProcessAuthenticationRequest(Connection& RequestingConnection, FPCore::Net::PacketBodyDef_Authentication& AuthRequestPacket)
 {
     Client* AuthenticatedClient = nullptr;
     
@@ -144,7 +144,7 @@ bool ClientsSubsystem::ProcessAuthenticationRequest(Connection& RequestingConnec
 }
 
 // Context = Clients Subsystem
-void ClientsSubsystem::HandleAuthenticationRequestPacket(FPCore::Net::Packet& AuthPacket, void* Context)
+void ClientsSubsystem::HandleAuthenticationRequestPacket(FPCore::Net::PacketHead& AuthPacket, void* Context)
 {
     ClientsSubsystem* Clients = static_cast<ClientsSubsystem*>(Context);
     
@@ -152,8 +152,8 @@ void ClientsSubsystem::HandleAuthenticationRequestPacket(FPCore::Net::Packet& Au
 
     // Read Packet data as a Authentication Request Packet. This same data will be read by the authentication system
     // and have its data replaced so it can be sent back as a response.
-    FPCore::Net::PacketData_Authentication AuthPacketData = AuthPacket.ReadDataAs<
-        FPCore::Net::PacketData_Authentication>();
+    FPCore::Net::PacketBodyDef_Authentication AuthPacketData = AuthPacket.ReadBodyDef<
+        FPCore::Net::PacketBodyDef_Authentication>();
 
     Connection& ReceptionConnection = Clients->ServerConnectionsSubsystem->ActiveConnections[AuthPacket.ConnectionID];
     
@@ -161,7 +161,6 @@ void ClientsSubsystem::HandleAuthenticationRequestPacket(FPCore::Net::Packet& Au
     Clients->ProcessAuthenticationRequest(ReceptionConnection, AuthPacketData);
 
     // Send Auth Response back.
-    FPCore::Net::Packet AuthResponsePacket(ReceptionConnection.ID, FPCore::Net::PacketType::AUTHENTICATION, AuthPacketData);
-    Clients->ServerConnectionsSubsystem->WriteOutgoingPacket(AuthResponsePacket);
+    Clients->ServerConnectionsSubsystem->WriteOutgoingPacket(ReceptionConnection.ID, FPCore::Net::PacketBodyType::AUTHENTICATION, &AuthPacketData);
 }
 

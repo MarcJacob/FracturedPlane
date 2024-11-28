@@ -2,13 +2,14 @@
 
 #include <iostream>
 
-#include "FPCore/Net/WorldSyncPackets.h"
 #include "ServerFramework/Subsystems/Core/ConnectionsSubsystem.h"
 #include "ServerFramework/Subsystems/Core/MemorySubsystem.h"
 #include "ServerFramework/Subsystems/Net/ClientsSubsystem.h"
 
 #include "FPCore/World/World.h"
 #include "ServerFramework/Subsystems/Core/WorldSubsystem.h"
+
+#include "FPCore/Net/Packet/WorldSyncPackets.h"
 
 bool WorldSynchronizationSubsystem::Initialize(MemorySubsystem& Memory, ClientsSubsystem& Clients, WorldSubsystem& World,
     size_t SyncMapCount)
@@ -48,22 +49,17 @@ void WorldSynchronizationSubsystem::SyncClients()
 bool WorldSynchronizationSubsystem::SynchronizeLandscape(Client& ClientToSync, ClientSyncState& SyncState)
 {
     // Synchronize top left corner.
-    FPCore::Net::PacketData_LandscapeSync LandscapeSyncPacketData = {};
-    LandscapeSyncPacketData.MinCoords = {0, 0};
-    LandscapeSyncPacketData.MaxCoords = {32, 32};
-    
-    for (int X = 0; X < 32; X++)
-    {
-        for(int Y = 0; Y < 32; Y++)
-        {
-            LandscapeSyncPacketData.LandscapeData.TileTypes[X * 32 + Y] = LinkedWorldSubsystem->WorldLandscape.TileTypes[X * LinkedWorldSubsystem->WorldSize + Y];
-            LandscapeSyncPacketData.LandscapeData.TileAltitudes[X * 32 + Y] = LinkedWorldSubsystem->WorldLandscape.TileAltitudes[X * LinkedWorldSubsystem->WorldSize + Y];
-        }
-    }
+    FPCore::Net::PacketBodyDef_LandscapeSync LandscapeSyncPacketData = {};
+    LandscapeSyncPacketData.NorthWestCoords = {0, 0};
+   
+    // We're synchronizing the entire landscape so just point to the internal world landscape data.
+    // It will get copied when writing to the packet to the send buffer.
+    // This is definitely a great idea.
+    LandscapeSyncPacketData.LandscapeData = LinkedWorldSubsystem->WorldLandscape;
 
     // Send full landscape data to Client's connection and return whether writing the packet for sending was a success.
-    FPCore::Net::Packet LandscapeSyncPacket = FPCore::Net::Packet(ClientToSync.LinkedConnection->ID, FPCore::Net::PacketType::WORLD_SYNC_LANDSCAPE, LandscapeSyncPacketData);
-    return LinkedClientsSubsystem->ServerConnectionsSubsystem->WriteOutgoingPacket(LandscapeSyncPacket);
+    return LinkedClientsSubsystem->ServerConnectionsSubsystem->WriteOutgoingPacket(ClientToSync.LinkedConnection->ID, 
+        FPCore::Net::PacketBodyType::WORLD_SYNC_LANDSCAPE, &LandscapeSyncPacketData);
 }
 
 void WorldSynchronizationSubsystem::OnClientConnected(Client& ConnectedClient, void* Context)

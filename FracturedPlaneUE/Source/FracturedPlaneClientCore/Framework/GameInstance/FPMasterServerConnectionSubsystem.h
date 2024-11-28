@@ -4,7 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "FPCore/Net/Packet.h"
+#include "FPCore/Net/Packet/Packet.h"
 
 #include "FPMasterServerConnectionSubsystem.generated.h"
 
@@ -37,7 +37,7 @@ enum class EAuthentificationState : uint8
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAuthenticationStateChangedDelegate, EAuthentificationState, State);
-DECLARE_DELEGATE_OneParam(FOnPacketReceivedDelegate, FPCore::Net::Packet&);
+DECLARE_DELEGATE_OneParam(FOnPacketReceivedDelegate, FPCore::Net::PacketHead&);
 
 UCLASS()
 class FRACTUREDPLANECLIENTCORE_API UFPMasterServerConnectionSubsystem : public UGameInstanceSubsystem
@@ -72,7 +72,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	EAuthentificationState AuthenticationState;
 
-	FOnPacketReceivedDelegate OnPacketReceived[static_cast<int>(FPCore::Net::PacketType::PACKET_TYPE_COUNT)];
+	FOnPacketReceivedDelegate OnPacketReceived[static_cast<int>(FPCore::Net::PacketBodyType::PACKET_TYPE_COUNT)];
 	
 private:
 	void BroadcastAuthenticationState() const;
@@ -89,5 +89,7 @@ private:
 	FSocket* ConnectionSocket;
 
 	// Packet handlers
-	void HandleAuthenticationResponsePacket(FPCore::Net::Packet& Packet);
+	void HandleAuthenticationResponsePacket(FPCore::Net::PacketHead& Packet);
+
+	FPCore::Net::PacketBodyFuncMap PacketBodyTypeFunctionsMap;
 };

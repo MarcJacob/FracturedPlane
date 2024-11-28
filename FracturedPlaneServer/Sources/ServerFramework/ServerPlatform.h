@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "FPCore/Net/Packet.h"
+#include "FPCore/Net/Packet/Packet.h"
 
 // A set of properties and services a Platform has to provide to the Server for it to run appropriately.
 // Every function pointer needs to be assigned to something to avoid crashes.

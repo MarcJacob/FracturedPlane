@@ -4,6 +4,8 @@
 
 #include "ServerFramework/Server.h"
 
+#include "FPCore/Net/Packet/PacketBodyTypeFunctionDefs.h"
+
 ServerConnectionID_t GetAvailableConnectionID(Connection* ConnectionsBuffer, size_t ConnectionsBufferSize)
 {
     for(ServerConnectionID_t ServerConnectionID = 0; ServerConnectionID < ConnectionsBufferSize; ServerConnectionID++)
@@ -35,8 +37,8 @@ bool ConnectionsSubsystem::Initialize(MemorySubsystem& Memory, size_t MaxConnect
         return false;
     }
 
-    PacketWriter.WriteBuffer = static_cast<byte*>(Memory.Allocate(1024));
     PacketWriter.WriteBufferSize = 1024 * 64;
+    PacketWriter.WriteBuffer = static_cast<byte*>(Memory.Allocate(PacketWriter.WriteBufferSize));
     PacketWriter.WrittenBytes = 0;
 
     if (nullptr == PacketWriter.WriteBuffer)
@@ -44,6 +46,8 @@ bool ConnectionsSubsystem::Initialize(MemorySubsystem& Memory, size_t MaxConnect
         return false;
     }
     
+    FPCore::Net::InitializePacketBodyTypeFunctionsDefMap(PacketBodyDefFunctionsMap);
+
     return true;
 }
 
@@ -117,19 +121,19 @@ Connection* ConnectionsSubsystem::GetConnectionFromPlatformSocket(ServerPlatform
     return nullptr;
 }
 
-void ConnectionsSubsystem::HandleIncomingPacket(FPCore::Net::Packet& Packet)
+void ConnectionsSubsystem::HandleIncomingPacket(FPCore::Net::PacketHead& Packet)
 {
     if (Packet.ConnectionID == ServerPlatform::INVALID_ID
-        || Packet.Type == FPCore::Net::PacketType::INVALID
-        || Packet.Type >= FPCore::Net::PacketType::PACKET_TYPE_COUNT)
+        || Packet.BodyType == FPCore::Net::PacketBodyType::INVALID
+        || Packet.BodyType >= FPCore::Net::PacketBodyType::PACKET_TYPE_COUNT)
     {
         return;
     }
 
     // Check that this message type is handled.
-    if (PacketReceptionTable.PacketReceptionHandlers[static_cast<int>(Packet.Type)].HandlerFunc == nullptr)
+    if (PacketReceptionTable.PacketReceptionHandlers[Packet.BodyType].HandlerFunc == nullptr)
     {
-        std::cerr << "Error when handling incoming packet: Packet Type " << static_cast<int>(Packet.Type)
+        std::cerr << "Error when handling incoming packet: Packet Body Type " << static_cast<int>(Packet.BodyType)
         << " is not handled !\n";
         return;
     }
@@ -152,28 +156,30 @@ void ConnectionsSubsystem::HandleIncomingPacket(FPCore::Net::Packet& Packet)
 }
 
 #pragma optimize("", off)
-bool ConnectionsSubsystem::WriteOutgoingPacket(const FPCore::Net::Packet& Packet)
+bool ConnectionsSubsystem::WriteOutgoingPacket(ServerConnectionID_t DestinationConnectionID, FPCore::Net::PacketBodyType BodyType, void* BodyDefPtr)
 {
     // Perform sanity checks
-    if (Packet.ConnectionID == INVALID_CONNECTION_ID
-        || Packet.ConnectionID >= MaxConnectionCount
-        || ActiveConnections[Packet.ConnectionID].PlatformConnectionID == ServerPlatform::INVALID_ID)
+    if (DestinationConnectionID == INVALID_CONNECTION_ID
+        || DestinationConnectionID >= MaxConnectionCount
+        || ActiveConnections[DestinationConnectionID].PlatformConnectionID == ServerPlatform::INVALID_ID)
     {
         std::cerr << "Error when writing an outgoing packet: Invalid Connection ID !\n";
         return false;
     }
 
-    if (Packet.Type == FPCore::Net::PacketType::INVALID
-        || Packet.Type >= FPCore::Net::PacketType::PACKET_TYPE_COUNT
-        || Packet.DataSize == 0
-        || Packet.Data == nullptr)
+    if (BodyType == FPCore::Net::PacketBodyType::INVALID
+        || BodyType >= FPCore::Net::PacketBodyType::PACKET_TYPE_COUNT
+        || BodyDefPtr == nullptr)
     {
-        std::cerr << "Error when writing an outgoing packet: Invalid Packet !\n";
+        std::cerr << "Error when writing an outgoing packet: Invalid Body !\n";
         return false;
     }
 
+    // Dereference body and obtain its size.
+    size_t BodySize = PacketBodyDefFunctionsMap[BodyType].GetMarshalledSize(BodyDefPtr);
+
     // Check that there is enough space within the write buffer.
-    size_t RequiredSize = sizeof(FPCore::Net::Packet) + Packet.DataSize;
+    size_t RequiredSize = sizeof(FPCore::Net::PacketHead) + BodySize;
     size_t SizeLeft = PacketWriter.WriteBufferSize - PacketWriter.WrittenBytes;
     if (SizeLeft < RequiredSize)
     {
@@ -181,9 +187,34 @@ bool ConnectionsSubsystem::WriteOutgoingPacket(const FPCore::Net::Packet& Packet
         << RequiredSize << ", had " << SizeLeft << ")\n";
         return false;
     }
+
+    byte* WriteLocation = PacketWriter.WriteBuffer + PacketWriter.WrittenBytes;
+    byte* WriteStartLoc = WriteLocation;
     
-    byte* WriteEnd = WritePacketToBuffer(PacketWriter.WriteBuffer + PacketWriter.WrittenBytes, ActiveConnections[Packet.ConnectionID].PlatformConnectionID, Packet.Type, Packet.Data, Packet.DataSize);
-    PacketWriter.WrittenBytes = WriteEnd - PacketWriter.WriteBuffer;
+    memset(WriteStartLoc, 0, RequiredSize);
+
+    // Write Packet
+    
+    FPCore::Net::PacketHead& PacketHead = *reinterpret_cast<FPCore::Net::PacketHead*>(WriteLocation);
+    PacketHead.ConnectionID = ActiveConnections[DestinationConnectionID].PlatformConnectionID;
+    PacketHead.BodyType = BodyType;
+    PacketHead.BodySize = BodySize;
+
+    WriteLocation += sizeof(FPCore::Net::PacketHead);
+    SizeLeft -= sizeof(FPCore::Net::PacketHead);
+
+    // Call MarshalTo function associated with this Packet Body Type.
+    if (!PacketBodyDefFunctionsMap[BodyType].MarshalTo(BodyDefPtr, WriteLocation, SizeLeft))
+    {
+        // If Marshalling fails, return immediately, signaling a failure in the packet writing process.
+        // Since PacketWriter.WrittenBytes does not get incremented, the next write attempt will happen over the same memory.
+        return false;
+    }
+    PacketHead.BodyStart = WriteLocation;
+    WriteLocation += BodySize;
+
+    PacketWriter.WrittenBytes += WriteLocation - WriteStartLoc;
+
     return true;
 }
 

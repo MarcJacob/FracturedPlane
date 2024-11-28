@@ -31,7 +31,7 @@ struct WorldSynchronizationSubsystem
 
     ClientsSubsystem* LinkedClientsSubsystem;
     WorldSubsystem* LinkedWorldSubsystem;
-    
+
     // Initialize this subsystem. Requires a Clients and World Subsystem to link to. Requires a Memory Subsystem to allocate
     // buffers, whose size will depend on Clients Subsystem max supported clients.
     bool Initialize(MemorySubsystem& Memory, ClientsSubsystem& Clients, WorldSubsystem& World,
@@ -40,8 +40,6 @@ struct WorldSynchronizationSubsystem
     void SyncClients();
 
     bool SynchronizeLandscape(Client& ClientToSync, ClientSyncState& SyncState);
-
-    bool SynchronizeEntities(Client& ClientToSync, ClientSyncState& SyncState);
     
     // Handler for On Client Connected event in Clients Subsystem.
     // Context = pointer to this structure.

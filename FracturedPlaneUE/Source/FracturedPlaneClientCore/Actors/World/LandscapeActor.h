@@ -5,7 +5,6 @@
 
 #include "CoreMinimal.h"
 #include "ProceduralMeshComponent.h"
-#include "FPCore/Net/Packet.h"
 #include "FPCore/World/World.h"
 #include "LandscapeActor.generated.h"
 

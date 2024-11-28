@@ -29,11 +29,6 @@ struct WorldSubsystem
 
     CallbackTable<OnCharacterCreatedFunc, 8> OnCharacterCreatedCallbackTable;
     
-    // The world is square, its size being the length of one side.
-    // #TODO(Marc): It would be smart to cut it down to Regions so larger expenses of void wouldn't have to be
-    // stored in memory.
-    WorldSize_t WorldSize;
-    
     // Contains all data related to the world's tiles.
     FPCore::World::Landscape        WorldLandscape;
 

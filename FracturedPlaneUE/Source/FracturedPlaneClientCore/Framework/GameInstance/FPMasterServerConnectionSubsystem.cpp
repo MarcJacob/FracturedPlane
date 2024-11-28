@@ -4,7 +4,10 @@
 #include "Interfaces/IPv4/IPv4Address.h"
 #include "SocketSubsystem.h"
 
-#include "FPCore/Net/WorldSyncPackets.h"
+#include "FPCore/Net/Packet/AuthenticationPackets.h"
+#include "FPCore/Net/Packet/WorldSyncPackets.h"
+
+#include "FPCore/Net/Packet/PacketBodyTypeFunctionDefs.h"
 
 DEFINE_LOG_CATEGORY(FLogFPClientServerConnectionSubsystem);
 
@@ -14,7 +17,8 @@ void UFPMasterServerConnectionSubsystem::Initialize(FSubsystemCollectionBase& Co
 
 	memset(OnPacketReceived, 0, sizeof(OnPacketReceived));
 	
-	OnPacketReceived[static_cast<int>(FPCore::Net::PacketType::AUTHENTICATION)].BindUObject(this, &UFPMasterServerConnectionSubsystem::HandleAuthenticationResponsePacket);
+	OnPacketReceived[static_cast<int>(FPCore::Net::PacketBodyType::AUTHENTICATION)].BindUObject(this, &UFPMasterServerConnectionSubsystem::HandleAuthenticationResponsePacket);
+	FPCore::Net::InitializePacketBodyTypeFunctionsDefMap(PacketBodyTypeFunctionsMap);
 }
 
 void UFPMasterServerConnectionSubsystem::Deinitialize()
@@ -125,22 +129,26 @@ bool UFPMasterServerConnectionSubsystem::SendAuthenticationRequest(FFPClientAuth
 		return false;
 	}
 	
-	FPCore::Net::PacketData_Authentication AuthRequestPacketData = {};
+	FPCore::Net::PacketBodyDef_Authentication AuthRequestPacketData = {};
 
 	char* AuthUsername = TCHAR_TO_ANSI(*AuthenticationInfo.Username);
 	strcpy_s(AuthRequestPacketData.Request.Username, sizeof(AuthRequestPacketData.Request.Username), AuthUsername);
 
 	// Encode Packet and send.
-	FPCore::Net::Packet AuthRequestPacket(0, FPCore::Net::PacketType::AUTHENTICATION, AuthRequestPacketData);
 
-	FPCore::Net::NetEncodedPacket AuthRequestPacket_Encoded;
-	AuthRequestPacket_Encoded.PacketType = AuthRequestPacket.Type;
-	AuthRequestPacket_Encoded.DataSize = AuthRequestPacket.DataSize;
+	size_t BodySize = PacketBodyTypeFunctionsMap[FPCore::Net::PacketBodyType::AUTHENTICATION].GetMarshalledSize(&AuthRequestPacketData);
+
+	FPCore::Net::NetEncodedPacketHead AuthRequestPacket_Encoded;
+	AuthRequestPacket_Encoded.BodyType = FPCore::Net::PacketBodyType::AUTHENTICATION;
+	AuthRequestPacket_Encoded.BodySize = BodySize;
 	
 	byte SendBuffer[sizeof(AuthRequestPacket_Encoded) + sizeof(AuthRequestPacketData)];
 
 	memcpy(SendBuffer, &AuthRequestPacket_Encoded, sizeof(AuthRequestPacket_Encoded));
-	memcpy(SendBuffer + sizeof(AuthRequestPacket_Encoded), &AuthRequestPacketData, sizeof(AuthRequestPacketData));
+
+	// Marshal body directly into send buffer.
+	PacketBodyTypeFunctionsMap[AuthRequestPacket_Encoded.BodyType].MarshalTo(&AuthRequestPacketData, SendBuffer + sizeof(AuthRequestPacket_Encoded)
+		, sizeof(SendBuffer) - sizeof(FPCore::Net::NetEncodedPacketHead));
 	
 	int32 BytesSent;
 	if (!ConnectionSocket->Send(SendBuffer, sizeof(SendBuffer), BytesSent))
@@ -173,21 +181,22 @@ void UFPMasterServerConnectionSubsystem::OnDataReceived(uint8* Data, int32 DataS
 	int ReadBytes = 0;
 	while(ReadBytes < DataSize)
 	{
-		FPCore::Net::NetEncodedPacket* EncodedPacket = reinterpret_cast<FPCore::Net::NetEncodedPacket*>(Data + ReadBytes);
+		FPCore::Net::NetEncodedPacketHead* EncodedPacket = reinterpret_cast<FPCore::Net::NetEncodedPacketHead*>(Data + ReadBytes);
 
-		FPCore::Net::Packet Packet = {};
-		Packet.Type = EncodedPacket->PacketType;
-		Packet.DataSize = EncodedPacket->DataSize;
-		Packet.Data = Data + ReadBytes + sizeof(FPCore::Net::NetEncodedPacket);
-	
-		int PacketTypeIndex = static_cast<int>(Packet.Type);
+		FPCore::Net::PacketHead Packet = {};
+		Packet.BodyType = EncodedPacket->BodyType;
+		Packet.BodySize = EncodedPacket->BodySize;
+		Packet.BodyStart = Data + ReadBytes + sizeof(FPCore::Net::NetEncodedPacketHead);
 
-		if (ensure(PacketTypeIndex > 0 && PacketTypeIndex < static_cast<int>(FPCore::Net::PacketType::PACKET_TYPE_COUNT)))
+		if (ensure(Packet.BodyType >= 0 && Packet.BodyType < FPCore::Net::PacketBodyType::PACKET_TYPE_COUNT))
 		{
-			OnPacketReceived[PacketTypeIndex].ExecuteIfBound(Packet);
+			// Muster the body def back into place.
+			PacketBodyTypeFunctionsMap[EncodedPacket->BodyType].Muster(static_cast<byte*>(Packet.BodyStart), Packet.BodySize);
+			// Call handler
+			OnPacketReceived[Packet.BodyType].ExecuteIfBound(Packet);
 		}
 
-		ReadBytes += sizeof(EncodedPacket) + EncodedPacket->DataSize;
+		ReadBytes += sizeof(EncodedPacket) + EncodedPacket->BodySize;
 	}
 }
 
@@ -209,12 +218,12 @@ void UFPMasterServerConnectionSubsystem::Disconnect()
 	ConnectionSocket = nullptr;
 }
 
-void UFPMasterServerConnectionSubsystem::HandleAuthenticationResponsePacket(FPCore::Net::Packet& Packet)
+void UFPMasterServerConnectionSubsystem::HandleAuthenticationResponsePacket(FPCore::Net::PacketHead& Packet)
 {
-	FPCore::Net::PacketData_Authentication AuthPacketData = {};
+	FPCore::Net::PacketBodyDef_Authentication AuthPacketData = {};
 	
 	// Process Auth Response
-	AuthPacketData = Packet.ReadDataAs<FPCore::Net::PacketData_Authentication>();
+	AuthPacketData = Packet.ReadBodyDef<FPCore::Net::PacketBodyDef_Authentication>();
 	if (AuthPacketData.Response.bAccepted)
 	{
 		UE_LOG(FLogFPClientServerConnectionSubsystem, Log, TEXT("Successfully Authenticated to Master Server !"));

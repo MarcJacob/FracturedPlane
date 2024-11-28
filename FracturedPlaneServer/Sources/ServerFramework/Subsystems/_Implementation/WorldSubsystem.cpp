@@ -11,9 +11,12 @@ bool WorldSubsystem::GenerateWorldLandscape(MemorySubsystem& Memory, WorldSize_t
 {
     using namespace FPCore::World;
     
-    WorldSize = Size;
     size_t TotalTileCount = static_cast<size_t>(Size) * Size;
     
+    WorldLandscape.Size = Size;
+    WorldLandscape.TileTypes = Memory.AllocateZeroed<FPCore::World::TileLandscapeType>(TotalTileCount);
+    WorldLandscape.TileAltitudes = Memory.AllocateZeroed<FPCore::World::TileAltitude_t>(TotalTileCount);
+
     if (nullptr == WorldLandscape.TileTypes || nullptr == WorldLandscape.TileAltitudes)
     {
         return false;

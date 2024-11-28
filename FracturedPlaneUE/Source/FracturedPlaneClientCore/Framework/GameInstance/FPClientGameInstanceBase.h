@@ -85,5 +85,5 @@ private:
 	UFUNCTION()
 	void OnMasterServerAuthenticationStateChanged(EAuthentificationState State);
 	
-	void OnWorldLandscapeSyncPacketReceived(FPCore::Net::Packet& Packet);
+	void OnWorldLandscapeSyncPacketReceived(FPCore::Net::PacketHead& Packet);
 };

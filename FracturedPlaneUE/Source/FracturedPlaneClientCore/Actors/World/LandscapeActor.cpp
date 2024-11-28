@@ -1,6 +1,5 @@
 #include "LandscapeActor.h"
 
-#include "FPCore/Net/WorldSyncPackets.h"
 #include "Framework/GameInstance/FPClientGameInstanceBase.h"
 #include "Framework/GameInstance/FPMasterServerConnectionSubsystem.h"
 

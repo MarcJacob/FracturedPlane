@@ -46,7 +46,7 @@ std::mutex Mutex_NetDataReception;
 
 // #TODO(Marc): Read those from config file ! + Define on Server Platform as Server will also need to know the encoding type for packet size.
 #define RECEPTION_BUFFER_SIZE (1024 * 64) // 64kb
-static_assert(RECEPTION_BUFFER_SIZE % sizeof(FPCore::Net::PacketSize_t) == 0, "STATIC ASSERTION FAILURE: RECEPTION_BUFFER_SIZE must be dividable by PACKET_MAX_SIZE !");
+static_assert(RECEPTION_BUFFER_SIZE % sizeof(FPCore::Net::PacketBodySize_t) == 0, "STATIC ASSERTION FAILURE: RECEPTION_BUFFER_SIZE must be dividable by PACKET_MAX_SIZE !");
 
 uint8_t ReceptionBuffer[RECEPTION_BUFFER_SIZE];
 size_t ReceivedBytes = 0; // Bytes received since last Reception Buffer Clear.
@@ -130,7 +130,7 @@ void Disconnect(ServerPlatform::ConnectionID ConnectionID)
 void HandleNetData(ServerPlatform::ConnectionID ConnectionID, const char* DataPtr, size_t DataSize)
 {
 	// Check that we have enough memory left in the Reception Buffer for the data itself plus the Connection ID and Data Size indicators.
-	size_t TotalRequiredBytes = DataSize + sizeof(FPCore::Net::NetEncodedPacket) + sizeof(ServerPlatform::ConnectionID);
+	size_t TotalRequiredBytes = DataSize + sizeof(FPCore::Net::NetEncodedPacketHead) + sizeof(ServerPlatform::ConnectionID);
 	if (TotalRequiredBytes > RECEPTION_BUFFER_SIZE - ReceivedBytes)
 	{
 		std::cerr << "Out of memory on Win32Net Reception Buffer.\n";
@@ -153,24 +153,24 @@ void HandleNetData(ServerPlatform::ConnectionID ConnectionID, const char* DataPt
 
 			// Extract a Net Encoded Packet. If it is valid, build a final Packet from it and add it to the Reception buffer.
 			
-			const FPCore::Net::NetEncodedPacket& EncodedPacket = *reinterpret_cast<const FPCore::Net::NetEncodedPacket*>(ReadAddress);
-			if (EncodedPacket.PacketType == FPCore::Net::PacketType::INVALID
-				|| EncodedPacket.PacketType >= FPCore::Net::PacketType::PACKET_TYPE_COUNT)
+			const FPCore::Net::NetEncodedPacketHead& EncodedPacket = *reinterpret_cast<const FPCore::Net::NetEncodedPacketHead*>(ReadAddress);
+			if (EncodedPacket.BodyType == FPCore::Net::PacketBodyType::INVALID
+				|| EncodedPacket.BodyType >= FPCore::Net::PacketBodyType::PACKET_TYPE_COUNT)
 			{
 				AbortReception = true;
 				break;
 			}
 
-			FPCore::Net::Packet* WritePacketAddress = reinterpret_cast<FPCore::Net::Packet*>(ReceptionBuffer + ReceivedBytes);
+			FPCore::Net::PacketHead* WritePacketAddress = reinterpret_cast<FPCore::Net::PacketHead*>(ReceptionBuffer + ReceivedBytes);
 			WritePacketAddress->ConnectionID = ConnectionID;
-			WritePacketAddress->Type = EncodedPacket.PacketType;
-			WritePacketAddress->DataSize = EncodedPacket.DataSize;
+			WritePacketAddress->BodyType = EncodedPacket.BodyType;
+			WritePacketAddress->BodySize = EncodedPacket.BodySize;
 
-			memcpy(ReceptionBuffer + ReceivedBytes + sizeof(FPCore::Net::Packet), ReadAddress + sizeof(FPCore::Net::NetEncodedPacket), WritePacketAddress->DataSize);
-			WritePacketAddress->Data = ReceptionBuffer + ReceivedBytes + sizeof(FPCore::Net::Packet);
+			memcpy(ReceptionBuffer + ReceivedBytes + sizeof(FPCore::Net::PacketHead), ReadAddress + sizeof(FPCore::Net::NetEncodedPacketHead), WritePacketAddress->BodySize);
+			WritePacketAddress->BodyStart = ReceptionBuffer + ReceivedBytes + sizeof(FPCore::Net::PacketHead);
 			
-			ReadBytes += sizeof(FPCore::Net::NetEncodedPacket) + EncodedPacket.DataSize;
-			ReceivedBytes += sizeof(FPCore::Net::Packet) + WritePacketAddress->DataSize;
+			ReadBytes += sizeof(FPCore::Net::NetEncodedPacketHead) + EncodedPacket.BodySize;
+			ReceivedBytes += sizeof(FPCore::Net::PacketHead) + WritePacketAddress->BodySize;
 		}
 		
 		if (AbortReception)
@@ -404,31 +404,31 @@ DWORD WINAPI SendingThread_Func(void* Param)
 		size_t SendingBufferReadingOffset = 0;
 		while(SendingBufferReadingOffset < BytesToSend)
 		{
-			FPCore::Net::Packet OutgoingPacket = *reinterpret_cast<FPCore::Net::Packet*>(SendingBuffer + SendingBufferReadingOffset);
+			FPCore::Net::PacketHead OutgoingPacket = *reinterpret_cast<FPCore::Net::PacketHead*>(SendingBuffer + SendingBufferReadingOffset);
 			
 			SOCKET OutgoingSocket = ActiveConnections[OutgoingPacket.ConnectionID].SocketHandle;
 			if (OutgoingSocket == INVALID_SOCKET)
 			{
 				// Skip this packet
-				SendingBufferReadingOffset += sizeof(FPCore::Net::Packet) + OutgoingPacket.DataSize;
+				SendingBufferReadingOffset += sizeof(FPCore::Net::PacketHead) + OutgoingPacket.BodySize;
 				continue;
 			}
 
 			char PacketSendingBuffer[1 << 16];
 			memset(PacketSendingBuffer, 0, sizeof(PacketSendingBuffer));
 			
-			FPCore::Net::NetEncodedPacket& EncodedOutgoingPacket = *reinterpret_cast<FPCore::Net::NetEncodedPacket*>(PacketSendingBuffer);
-			EncodedOutgoingPacket.PacketType = OutgoingPacket.Type;
-			EncodedOutgoingPacket.DataSize = OutgoingPacket.DataSize;
+			FPCore::Net::NetEncodedPacketHead& EncodedOutgoingPacket = *reinterpret_cast<FPCore::Net::NetEncodedPacketHead*>(PacketSendingBuffer);
+			EncodedOutgoingPacket.BodyType = OutgoingPacket.BodyType;
+			EncodedOutgoingPacket.BodySize = OutgoingPacket.BodySize;
 
 			memcpy_s(PacketSendingBuffer + sizeof(EncodedOutgoingPacket),
 				sizeof(PacketSendingBuffer) - sizeof(EncodedOutgoingPacket),
-				OutgoingPacket.Data, OutgoingPacket.DataSize);
+				OutgoingPacket.BodyStart, OutgoingPacket.BodySize);
 			
-			size_t TotalSendSize = sizeof(EncodedOutgoingPacket) + EncodedOutgoingPacket.DataSize;
+			size_t TotalSendSize = sizeof(EncodedOutgoingPacket) + EncodedOutgoingPacket.BodySize;
 			send(OutgoingSocket, PacketSendingBuffer, static_cast<int>(TotalSendSize), NULL);
 
-			SendingBufferReadingOffset += sizeof(FPCore::Net::Packet) + OutgoingPacket.DataSize;
+			SendingBufferReadingOffset += sizeof(FPCore::Net::PacketHead) + OutgoingPacket.BodySize;
 		}
 
 		// Once all data is sent, set the buffer size back to 0 and zero out its memory.
@@ -537,7 +537,7 @@ void ClearNetEvents()
 
 	PendingConnectionEventsCount = 0;
 	PendingDisconnectionEventsCount = 0;
-	
+
 	Mutex_ClientConnectionData.unlock();
 }
 

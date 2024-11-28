@@ -4,7 +4,7 @@
 #pragma once
 
 #include "cstdint"
-#include "FPCore/Net/Packet.h"
+#include "FPCore/Net/Packet/Packet.h"
 #include "ServerFramework/Subsystems/Subsystem.h"
 
 // DEPENDENCIES FORWARD DECLARATION
@@ -41,7 +41,7 @@ namespace FPCore
 {
     namespace Net
     {
-        struct PacketData_Authentication;
+        struct PacketBodyDef_Authentication;
     }
 }
 
@@ -86,9 +86,9 @@ struct ClientsSubsystem
     // Attempts to Authenticate a Client based on the data passed in an Authentication Packet.
     // Returns true if successful. The passed Authentication Packet will be cleared and have its data
     // replaced with appropriate Response data so it can be sent back.
-    bool ProcessAuthenticationRequest(Connection& RequestingConnection, FPCore::Net::PacketData_Authentication& AuthRequestPacket);
+    bool ProcessAuthenticationRequest(Connection& RequestingConnection, FPCore::Net::PacketBodyDef_Authentication& AuthRequestPacket);
 
     // Packet Handlers
     
-    static void HandleAuthenticationRequestPacket(FPCore::Net::Packet& Packet, void* Clients);
+    static void HandleAuthenticationRequestPacket(FPCore::Net::PacketHead& Packet, void* Clients);
 };

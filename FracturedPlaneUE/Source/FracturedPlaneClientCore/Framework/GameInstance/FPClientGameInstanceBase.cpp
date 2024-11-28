@@ -3,7 +3,7 @@
 #include "EngineUtils.h"
 #include "Settings/FPGameConfig.h"
 
-#include "FPCore/Net/WorldSyncPackets.h"
+#include "FPCore/Net/Packet/WorldSyncPackets.h"
 
 DEFINE_LOG_CATEGORY(FLogFPClientGameInstance);
 
@@ -30,7 +30,7 @@ void UFPClientGameInstanceBase::Init()
 	MasterServerSubsystem->OnAuthenticationStateChanged.AddDynamic(this,
 	&UFPClientGameInstanceBase::OnMasterServerAuthenticationStateChanged);
 	
-	MasterServerSubsystem->OnPacketReceived[static_cast<int>(FPCore::Net::PacketType::WORLD_SYNC_LANDSCAPE)].BindUObject
+	MasterServerSubsystem->OnPacketReceived[static_cast<int>(FPCore::Net::PacketBodyType::WORLD_SYNC_LANDSCAPE)].BindUObject
 	(this, &UFPClientGameInstanceBase::OnWorldLandscapeSyncPacketReceived);
 }
 
@@ -130,33 +130,24 @@ void UFPClientGameInstanceBase::OnMasterServerAuthenticationStateChanged(EAuthen
 	}
 }
 
-void UFPClientGameInstanceBase::OnWorldLandscapeSyncPacketReceived(FPCore::Net::Packet& Packet)
+void UFPClientGameInstanceBase::OnWorldLandscapeSyncPacketReceived(FPCore::Net::PacketHead& Packet)
 {
 	TileTypeGrid.Empty();
 	
 	// Fill in grid from received packet.
-	const FPCore::Net::PacketData_LandscapeSync& LandscapeSyncPacketData = Packet.ReadDataAs<FPCore::Net::PacketData_LandscapeSync>();
+	const FPCore::Net::PacketBodyDef_LandscapeSync& LandscapeSyncPacketData = Packet.ReadBodyDef<FPCore::Net::PacketBodyDef_LandscapeSync>();
 
-	FIntVector LandscapeSize;
-	LandscapeSize.X = LandscapeSyncPacketData.MaxCoords.X - LandscapeSyncPacketData.MinCoords.X;
-	LandscapeSize.Y = LandscapeSyncPacketData.MaxCoords.Y - LandscapeSyncPacketData.MinCoords.Y;
-
-	if (!ensure(LandscapeSize.X >= 32 || LandscapeSize.Y >= 32))
+	TileTypeGrid.SetNum(LandscapeSyncPacketData.LandscapeData.Size);
+	for(int Column = 0; Column < LandscapeSyncPacketData.LandscapeData.Size; Column++)
 	{
-		return;
+		TileTypeGrid[Column].SetNum(LandscapeSyncPacketData.LandscapeData.Size);
 	}
 
-	TileTypeGrid.SetNum(LandscapeSize.X);
-	for(int Column = 0; Column < LandscapeSize.X; Column++)
+	for(int X = 0; X < LandscapeSyncPacketData.LandscapeData.Size; X++)
 	{
-		TileTypeGrid[Column].SetNum(LandscapeSize.Y);
-	}
-
-	for(int X = 0; X < LandscapeSize.X; X++)
-	{
-		for(int Y = 0; Y < LandscapeSize.Y; Y++)
+		for(int Y = 0; Y < LandscapeSyncPacketData.LandscapeData.Size; Y++)
 		{
-			TileTypeGrid[X][Y] = static_cast<ELandscapeTileType>(LandscapeSyncPacketData.LandscapeData.TileTypes[X * LandscapeSize.Y + Y]);
+			TileTypeGrid[X][Y] = static_cast<ELandscapeTileType>(LandscapeSyncPacketData.LandscapeData.TileTypes[X * LandscapeSyncPacketData.LandscapeData.Size + Y]);
 		}
 	}
 	

@@ -31,9 +31,9 @@ namespace FPCore
         {
             int16_t Size; // How large this landscape is. Total tile count will be Size * Size.
             // Per-Tile Buffers.
-            TileLandscapeType TileTypes[32 * 32]; // #TODO(Marc): Void tiles should not have associated memory for other tile properties
+            TileLandscapeType* TileTypes; // #TODO(Marc): Void tiles should not have associated memory for other tile properties
             // that require land being present.
-            TileAltitude_t TileAltitudes[32 * 32];
+            TileAltitude_t* TileAltitudes;
         };
 
         typedef uint32_t GlobalCharacterID;
