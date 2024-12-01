@@ -13,12 +13,13 @@ struct WorldSubsystem;
 
 struct ClientSyncState
 {
-    // Is this Sync State relevant to any online client ?
-    bool bActive;
-    // Has the client been given the Landscape data ?
-    bool bRequiresLandscapeDataSync;
-    // Should we send this client a full Entities update ?
-    bool bRequiresEntitiesSync;
+    // Is this sync state active / is the linked Client online and in world view ?
+    bool bActive = false;
+
+    bool bRequiresZoneUpdate = false;
+
+    // ID of currently controlled character if any. Determines Cluster and Sync Regions.
+    FPCore::World::Entities::CharacterID ControlledCharacterID = ~0;
 };
 
 // Subsystem tasked with handling World Data synchronization for clients.
@@ -34,8 +35,9 @@ struct WorldSynchronizationSubsystem
 
     // Initialize this subsystem. Requires a Clients and World Subsystem to link to. Requires a Memory Subsystem to allocate
     // buffers, whose size will depend on Clients Subsystem max supported clients.
-    bool Initialize(MemorySubsystem& Memory, ClientsSubsystem& Clients, WorldSubsystem& World,
-        size_t SyncMapCount);
+    bool Initialize(MemorySubsystem& Memory, ClientsSubsystem& Clients, WorldSubsystem& World);
+
+    void CreateSyncCluster(){}
 
     void SyncClients();
 

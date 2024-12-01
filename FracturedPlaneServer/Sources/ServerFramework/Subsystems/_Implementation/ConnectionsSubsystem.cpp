@@ -210,7 +210,7 @@ bool ConnectionsSubsystem::WriteOutgoingPacket(ServerConnectionID_t DestinationC
         // Since PacketWriter.WrittenBytes does not get incremented, the next write attempt will happen over the same memory.
         return false;
     }
-    PacketHead.BodyStart = WriteLocation;
+    PacketHead.BodyStart = &PacketHead + BodySize;
     WriteLocation += BodySize;
 
     PacketWriter.WrittenBytes += WriteLocation - WriteStartLoc;

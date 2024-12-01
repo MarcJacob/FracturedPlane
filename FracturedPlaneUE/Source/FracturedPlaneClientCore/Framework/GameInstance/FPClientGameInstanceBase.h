@@ -68,7 +68,7 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnGameStateChangedDelegate OnGameStateChanged;
 
-	TArray<TArray<ELandscapeTileType>> TileTypeGrid;
+	TArray<TArray<bool>> VoidTileGrid;
 	
 private:
 
@@ -85,5 +85,5 @@ private:
 	UFUNCTION()
 	void OnMasterServerAuthenticationStateChanged(EAuthentificationState State);
 	
-	void OnWorldLandscapeSyncPacketReceived(FPCore::Net::PacketHead& Packet);
+	void OnWorldZoneSyncPacketReceived(FPCore::Net::PacketHead& Packet);
 };

@@ -404,7 +404,8 @@ DWORD WINAPI SendingThread_Func(void* Param)
 		size_t SendingBufferReadingOffset = 0;
 		while(SendingBufferReadingOffset < BytesToSend)
 		{
-			FPCore::Net::PacketHead OutgoingPacket = *reinterpret_cast<FPCore::Net::PacketHead*>(SendingBuffer + SendingBufferReadingOffset);
+			byte* PacketLocation = SendingBuffer + SendingBufferReadingOffset;
+			FPCore::Net::PacketHead OutgoingPacket = *reinterpret_cast<FPCore::Net::PacketHead*>(PacketLocation);
 			
 			SOCKET OutgoingSocket = ActiveConnections[OutgoingPacket.ConnectionID].SocketHandle;
 			if (OutgoingSocket == INVALID_SOCKET)
@@ -423,7 +424,7 @@ DWORD WINAPI SendingThread_Func(void* Param)
 
 			memcpy_s(PacketSendingBuffer + sizeof(EncodedOutgoingPacket),
 				sizeof(PacketSendingBuffer) - sizeof(EncodedOutgoingPacket),
-				OutgoingPacket.BodyStart, OutgoingPacket.BodySize);
+				PacketLocation + sizeof(FPCore::Net::PacketHead), OutgoingPacket.BodySize);
 			
 			size_t TotalSendSize = sizeof(EncodedOutgoingPacket) + EncodedOutgoingPacket.BodySize;
 			send(OutgoingSocket, PacketSendingBuffer, static_cast<int>(TotalSendSize), NULL);

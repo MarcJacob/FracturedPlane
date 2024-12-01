@@ -12,14 +12,15 @@ namespace FPCore
 {
     namespace Net
     {
-        // Data linked to a WORLD_SYNC_LANDSCAPE type packet.
-        // Contains Landscape data relevant to a specific region of the map delimited by Min and Max Coordinates.
-        struct PacketBodyDef_LandscapeSync
+        // Data linked to a WORLD_SYNC_ZONE type packet.
+        // Contains Landscape data relevant to a specific zone of the map
+        // TODO: Variable size in case we don't want to / can't sync the entire zone at once.
+        struct PacketBodyDef_ZoneLandscapeSync
         {
-            // Coordinates of reference for north-western point of synched data, which will form a square.
-            World::Coordinates NorthWestCoords;
+            // Coordinates of reference for north-western point of zone. Useful when showing multiple zones.
+            World::Coordinates ZoneCoordinates;
 
-            World::Landscape LandscapeData;
+            byte VoidTileBitflag[256 * 256 / 8]; // For each tile, bit is set to 0 if void, 1 if land.
         };
 
         size_t GetMarshalledSizeFunc_WorldSyncLandscape(void* BodyDef);

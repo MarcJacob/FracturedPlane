@@ -8,14 +8,6 @@
 #include "FPCore/World/World.h"
 #include "LandscapeActor.generated.h"
 
-UENUM(BlueprintType)
-enum class ELandscapeTileType : uint8
-{
-	VOID = FPCore::World::TileLandscapeType::Void,
-	DIRT = FPCore::World::TileLandscapeType::Dirt,
-	TILE_TYPE_COUNT
-};
-
 /// Landscape Actor in charge of displaying a specific landmass in world view.
 /// Does so by reading the current World Synchronization status and forming a simple dynamic mesh from landscape tile data.
 UCLASS(Blueprintable)
@@ -28,16 +20,19 @@ public:
 	
 	virtual void PostInitializeComponents() override;
 	
-	void RefreshLandscape(TArray<TArray<ELandscapeTileType>> TileTypesGrid);
+	void RefreshLandscape(TArray<TArray<bool>> TileTypesGrid);
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Landscape Actor")
 	TObjectPtr<UProceduralMeshComponent> ProceduralMeshComponent;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Landscape Actor")
-	TMap<ELandscapeTileType, TObjectPtr<UTexture2D>> TileTypeTexturesMap;
+	TObjectPtr<UTexture2D> LandscapeTexture;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Landscape Actor")
-	TMap<ELandscapeTileType, FColor> TileTypeVertexColorMap;
+	FColor LandscapeVertexColor;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Landscape Actor")
+	FColor VoidVertexColor;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Landscape Actor")
 	TObjectPtr<UMaterial> ProcMeshMaterial;

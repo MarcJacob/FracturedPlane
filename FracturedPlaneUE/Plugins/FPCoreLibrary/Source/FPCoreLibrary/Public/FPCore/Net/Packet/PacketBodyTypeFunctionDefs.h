@@ -94,17 +94,13 @@ namespace FPCore
     {
         size_t GetMarshalledSizeFunc_WorldSyncLandscape(void* BodyDef)
         {
-            PacketBodyDef_LandscapeSync& LandscapeSyncBodyDef = *reinterpret_cast<PacketBodyDef_LandscapeSync*>(BodyDef);
-            size_t TileCount = LandscapeSyncBodyDef.LandscapeData.Size * LandscapeSyncBodyDef.LandscapeData.Size;
-
-            return sizeof(PacketBodyDef_LandscapeSync) // Body Def
-                + TileCount * sizeof(LandscapeSyncBodyDef.LandscapeData.TileTypes) // Types total size
-                + TileCount * sizeof(LandscapeSyncBodyDef.LandscapeData.TileAltitudes); // Altitudes total size
+            PacketBodyDef_ZoneLandscapeSync& LandscapeSyncBodyDef = *reinterpret_cast<PacketBodyDef_ZoneLandscapeSync*>(BodyDef);
+            return sizeof(LandscapeSyncBodyDef); // Body Def
         }
 
         bool MarshalFunc_WorldSyncLandscape(void* BodyDef, byte* Dest, size_t DestSize)
         {
-            PacketBodyDef_LandscapeSync& LandscapeSyncBodyDef = *reinterpret_cast<PacketBodyDef_LandscapeSync*>(BodyDef);
+            PacketBodyDef_ZoneLandscapeSync& LandscapeSyncBodyDef = *reinterpret_cast<PacketBodyDef_ZoneLandscapeSync*>(BodyDef);
 
             // Check that there is enough room.
             if (GetMarshalledSizeFunc_WorldSyncLandscape(BodyDef) > DestSize)
@@ -112,43 +108,17 @@ namespace FPCore
                 return false;
             }
 
-            // The data cannot simply be copied to destination as the body def has pointers to unmarshalled data.
-            // That data needs to be copied into destination after the body definition.
-
-            memcpy(Dest, BodyDef, sizeof(PacketBodyDef_LandscapeSync));
-            Dest += sizeof(PacketBodyDef_LandscapeSync);
-            size_t TileCount = LandscapeSyncBodyDef.LandscapeData.Size * LandscapeSyncBodyDef.LandscapeData.Size;
-
-            // Copy Landscape Tile Types
-            memcpy(Dest, LandscapeSyncBodyDef.LandscapeData.TileTypes, TileCount * sizeof(FPCore::World::TileLandscapeType));
-            Dest += TileCount * sizeof(FPCore::World::TileLandscapeType);
-            // Copy Landscape Altitudes
-            memcpy(Dest, LandscapeSyncBodyDef.LandscapeData.TileAltitudes, TileCount * sizeof(FPCore::World::TileAltitude_t));
-            Dest += TileCount * sizeof(FPCore::World::TileAltitude_t);
-
-            // Erase pointers, to leave no doubt that the data is now Marshalled and must be Mustered to be reconstituted.
-            LandscapeSyncBodyDef.LandscapeData.TileTypes = nullptr;
-            LandscapeSyncBodyDef.LandscapeData.TileAltitudes = nullptr;
+            // Copy the body to dest.
+            // More steps will be required when the packet is made to be of variable size.
+            memcpy(Dest, BodyDef, sizeof(PacketBodyDef_ZoneLandscapeSync));
+            Dest += sizeof(PacketBodyDef_ZoneLandscapeSync);
+            size_t TileCount = 256 * 256;
 
             return true;
         }
 
         bool MusterFunc_WorldSyncLandscape(byte* Body, size_t BodySize)
         {
-            PacketBodyDef_LandscapeSync& LandscapeSyncBodyDef = *reinterpret_cast<PacketBodyDef_LandscapeSync*>(Body);
-            Body += sizeof(PacketBodyDef_LandscapeSync);
-
-            // From the body def data, determine the location of internal pointed data from size values.
-            size_t TileCount = LandscapeSyncBodyDef.LandscapeData.Size * LandscapeSyncBodyDef.LandscapeData.Size;
-
-            // Muster Tile Type Data
-            LandscapeSyncBodyDef.LandscapeData.TileTypes = reinterpret_cast<FPCore::World::TileLandscapeType*>(Body);
-            Body += sizeof(FPCore::World::TileLandscapeType) * TileCount;
-
-            // Muster Tile Altitudes
-            LandscapeSyncBodyDef.LandscapeData.TileAltitudes = reinterpret_cast<FPCore::World::TileAltitude_t*>(Body);
-            Body += sizeof(FPCore::World::TileAltitude_t) * TileCount;
-
             return true;
         }
     }

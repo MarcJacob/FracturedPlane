@@ -15,27 +15,25 @@ void ALandscapeActor::PostInitializeComponents()
 
 	if (IsValid(GetWorld()->GetGameInstance()))
 	{
-		RefreshLandscape(UFPClientGameInstanceBase::GetFPClientGameInstance(this)->TileTypeGrid);
+		RefreshLandscape(UFPClientGameInstanceBase::GetFPClientGameInstance(this)->VoidTileGrid);
 	}
 }
 
-void ALandscapeActor::RefreshLandscape(TArray<TArray<ELandscapeTileType>> TileTypesGrid)
+void ALandscapeActor::RefreshLandscape(TArray<TArray<bool>> TileTypesGrid)
 {
 	if (ProceduralMeshComponent->GetNumSections() > 0)
 	{
 		ProceduralMeshComponent->ClearAllMeshSections();
 	}
 
-	const int TileTypeCount = static_cast<int>(ELandscapeTileType::TILE_TYPE_COUNT);
-	
 	TArray<TArray<FVector>> Vertex;
-	Vertex.SetNum(TileTypeCount);
+	Vertex.SetNum(2);
 	
 	TArray<TArray<int>> TriangleIndexes;
-	TriangleIndexes.SetNum(TileTypeCount);
+	TriangleIndexes.SetNum(2);
 	
 	TArray<TArray<FColor>> Colors;
-	Colors.SetNum(TileTypeCount);
+	Colors.SetNum(2);
 	
 	// Fill in Vertex, Triangle and Colors arrays.
 	for(int X = 0; X < TileTypesGrid.Num(); X++)
@@ -55,10 +53,10 @@ void ALandscapeActor::RefreshLandscape(TArray<TArray<ELandscapeTileType>> TileTy
 			Vertex[TileTypeIndex].Add(FVector((X+1) * TileSize, (Y+1) * TileSize, 0.f));
 			Vertex[TileTypeIndex].Add(FVector(X * TileSize,		(Y+1) * TileSize, 0.f));
 
-			Colors[TileTypeIndex].Emplace(TileTypeVertexColorMap[TileTypesGrid[X][Y]]);
-			Colors[TileTypeIndex].Emplace(TileTypeVertexColorMap[TileTypesGrid[X][Y]]);
-			Colors[TileTypeIndex].Emplace(TileTypeVertexColorMap[TileTypesGrid[X][Y]]);
-			Colors[TileTypeIndex].Emplace(TileTypeVertexColorMap[TileTypesGrid[X][Y]]);
+			Colors[TileTypeIndex].Emplace(TileTypeIndex == 0 ? VoidVertexColor : LandscapeVertexColor);
+			Colors[TileTypeIndex].Emplace(TileTypeIndex == 0 ? VoidVertexColor : LandscapeVertexColor);
+			Colors[TileTypeIndex].Emplace(TileTypeIndex == 0 ? VoidVertexColor : LandscapeVertexColor);
+			Colors[TileTypeIndex].Emplace(TileTypeIndex == 0 ? VoidVertexColor : LandscapeVertexColor);
 
 			TriangleIndexes[TileTypeIndex].Add(TrianglesStartIndex);
 			TriangleIndexes[TileTypeIndex].Add(TrianglesStartIndex + 2);
@@ -72,7 +70,7 @@ void ALandscapeActor::RefreshLandscape(TArray<TArray<ELandscapeTileType>> TileTy
 	}
 	
 	// Create a section per type of tile
-	for(int TileTypeIndex = 0; TileTypeIndex < static_cast<int>(ELandscapeTileType::TILE_TYPE_COUNT); TileTypeIndex++)
+	for(int TileTypeIndex = 0; TileTypeIndex < 2; TileTypeIndex++)
 	{
 		ProceduralMeshComponent->CreateMeshSection(TileTypeIndex, Vertex[TileTypeIndex], TriangleIndexes[TileTypeIndex], TArray<FVector>(), TArray<FVector2D>(), Colors[TileTypeIndex],
 			TArray<FProcMeshTangent>(), false);

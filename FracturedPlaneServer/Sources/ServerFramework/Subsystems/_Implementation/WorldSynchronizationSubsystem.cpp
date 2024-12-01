@@ -11,8 +11,7 @@
 
 #include "FPCore/Net/Packet/WorldSyncPackets.h"
 
-bool WorldSynchronizationSubsystem::Initialize(MemorySubsystem& Memory, ClientsSubsystem& Clients, WorldSubsystem& World,
-    size_t SyncMapCount)
+bool WorldSynchronizationSubsystem::Initialize(MemorySubsystem& Memory, ClientsSubsystem& Clients, WorldSubsystem& World)
 {
     LinkedClientsSubsystem = &Clients;
     LinkedWorldSubsystem = &World;
@@ -37,25 +36,22 @@ void WorldSynchronizationSubsystem::SyncClients()
         {
             continue;
         }
-        
-        if (ClientSyncStates[ClientID].bRequiresLandscapeDataSync)
+
+        if (ClientSyncStates[ClientID].bRequiresZoneUpdate)
         {
-            ClientSyncStates[ClientID].bRequiresLandscapeDataSync = !SynchronizeLandscape(LinkedClientsSubsystem->Clients[ClientID], ClientSyncStates[ClientID]);
+            SynchronizeLandscape(LinkedClientsSubsystem->Clients[ClientID], ClientSyncStates[ClientID]);
+            ClientSyncStates[ClientID].bRequiresZoneUpdate = false;
         }
     }
 }
 
-#pragma optimize("", off)
 bool WorldSynchronizationSubsystem::SynchronizeLandscape(Client& ClientToSync, ClientSyncState& SyncState)
 {
-    // Synchronize top left corner.
-    FPCore::Net::PacketBodyDef_LandscapeSync LandscapeSyncPacketData = {};
-    LandscapeSyncPacketData.NorthWestCoords = {0, 0};
-   
-    // We're synchronizing the entire landscape so just point to the internal world landscape data.
-    // It will get copied when writing to the packet to the send buffer.
-    // This is definitely a great idea.
-    LandscapeSyncPacketData.LandscapeData = LinkedWorldSubsystem->WorldLandscape;
+    // Synchronize Zone at 0,0 of Island 0 in Cluster 0.
+    FPCore::Net::PacketBodyDef_ZoneLandscapeSync LandscapeSyncPacketData = {};
+    LandscapeSyncPacketData.ZoneCoordinates = {0, 0};
+
+    memcpy(LandscapeSyncPacketData.VoidTileBitflag, LinkedWorldSubsystem->IslandClusters[0].Islands[0].Zones[0].VoidTileBitMask, sizeof(LandscapeSyncPacketData.VoidTileBitflag));
 
     // Send full landscape data to Client's connection and return whether writing the packet for sending was a success.
     return LinkedClientsSubsystem->ServerConnectionsSubsystem->WriteOutgoingPacket(ClientToSync.LinkedConnection->ID, 
@@ -80,8 +76,7 @@ void WorldSynchronizationSubsystem::OnClientConnected(Client& ConnectedClient, v
     }
 
     SyncState.bActive = true;
-    SyncState.bRequiresLandscapeDataSync = true;
-    SyncState.bRequiresEntitiesSync = true;
+    SyncState.bRequiresZoneUpdate = true;
 }
 
 void WorldSynchronizationSubsystem::OnClientDisconnected(Client& DisconnectedClient, void* Context)

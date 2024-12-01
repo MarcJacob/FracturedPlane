@@ -31,7 +31,7 @@ void UFPClientGameInstanceBase::Init()
 	&UFPClientGameInstanceBase::OnMasterServerAuthenticationStateChanged);
 	
 	MasterServerSubsystem->OnPacketReceived[static_cast<int>(FPCore::Net::PacketBodyType::WORLD_SYNC_LANDSCAPE)].BindUObject
-	(this, &UFPClientGameInstanceBase::OnWorldLandscapeSyncPacketReceived);
+	(this, &UFPClientGameInstanceBase::OnWorldZoneSyncPacketReceived);
 }
 
 void UFPClientGameInstanceBase::Tick(float DeltaTime)
@@ -130,29 +130,30 @@ void UFPClientGameInstanceBase::OnMasterServerAuthenticationStateChanged(EAuthen
 	}
 }
 
-void UFPClientGameInstanceBase::OnWorldLandscapeSyncPacketReceived(FPCore::Net::PacketHead& Packet)
+void UFPClientGameInstanceBase::OnWorldZoneSyncPacketReceived(FPCore::Net::PacketHead& Packet)
 {
-	TileTypeGrid.Empty();
+	VoidTileGrid.Empty();
 	
 	// Fill in grid from received packet.
-	const FPCore::Net::PacketBodyDef_LandscapeSync& LandscapeSyncPacketData = Packet.ReadBodyDef<FPCore::Net::PacketBodyDef_LandscapeSync>();
+	const FPCore::Net::PacketBodyDef_ZoneLandscapeSync& LandscapeSyncPacketData = Packet.ReadBodyDef<FPCore::Net::PacketBodyDef_ZoneLandscapeSync>();
 
-	TileTypeGrid.SetNum(LandscapeSyncPacketData.LandscapeData.Size);
-	for(int Column = 0; Column < LandscapeSyncPacketData.LandscapeData.Size; Column++)
+	VoidTileGrid.SetNum(256);
+	for(int Column = 0; Column < 256; Column++)
 	{
-		TileTypeGrid[Column].SetNum(LandscapeSyncPacketData.LandscapeData.Size);
+		VoidTileGrid[Column].SetNum(256);
 	}
 
-	for(int X = 0; X < LandscapeSyncPacketData.LandscapeData.Size; X++)
+	for(int X = 0; X < 256; X++)
 	{
-		for(int Y = 0; Y < LandscapeSyncPacketData.LandscapeData.Size; Y++)
+		for(int Y = 0; Y < 256; Y++)
 		{
-			TileTypeGrid[X][Y] = static_cast<ELandscapeTileType>(LandscapeSyncPacketData.LandscapeData.TileTypes[X * LandscapeSyncPacketData.LandscapeData.Size + Y]);
+			int BitIndex = X * 256 + Y;
+			VoidTileGrid[X][Y] = LandscapeSyncPacketData.VoidTileBitflag[BitIndex / 8] & (1 << BitIndex % 8);
 		}
 	}
 	
 	for(TActorIterator<ALandscapeActor> It(GetWorld()); It; ++It)
 	{
-		It->RefreshLandscape(TileTypeGrid);
+		It->RefreshLandscape(VoidTileGrid);
 	}
 }

@@ -40,8 +40,8 @@ void NetPacketReceptionTable_t::HandlePacket(FPCore::Net::PacketHead& Packet)
 
 size_t GetRequiredServerMemory()
 {
-    // Ask for enough memory to hold Server State Data + 64mb
-    return sizeof(ServerStateData) + static_cast<size_t>(1024 * 1024 * 64);
+    // Ask for enough memory to hold Server State Data + 1GB
+    return sizeof(ServerStateData) + static_cast<size_t>(1024 * 1024 * 1024 * 1);
 }
 
 // PLATFORM CALL
@@ -89,17 +89,22 @@ bool InitializeServer(const ServerPlatform& Platform, GameServerPtr& OutGameServ
         return false;
     }
 
-    if (!OutGameServer->World.GenerateWorldLandscape(OutGameServer->Memory, 32))
+    if (!OutGameServer->World.Initialize(OutGameServer->Memory))
     {
-        std::cerr << "Fatal Error when initializing Server: Couldn't generate World Landscape !\n";
+        std::cerr << "Fatal Error when initializing Server: Couldn't initialize World Subsystem !\n";
         return false;
     }
 
-    if (!OutGameServer->World.InitializeEntityData(OutGameServer->Memory, 32))
+    IslandGenerationInfo GenInfo;
+    GenInfo.BoundsSize = { 256, 256 };
+    GenInfo.ZoneCount = 256 * 256;
+    if (!OutGameServer->World.GenerateIsland(OutGameServer->Memory, GenInfo))
     {
-        std::cerr << "Fatal Error when initializing Server: Couldn't initialize World Entity Data !\n";
+        std::cerr << "Fatal Error when initializing Server: Couldn't generate Dev Island !\n";
         return false;
     }
+
+    std::cout << "Created dev island ID " << GenInfo.ID << " in Cluster " << GenInfo.ClusterID << "\n";
     
     if (!OutGameServer->Clients.Initialize(OutGameServer->Memory, 128, OutGameServer->Connections))
     {
@@ -109,7 +114,7 @@ bool InitializeServer(const ServerPlatform& Platform, GameServerPtr& OutGameServ
 
     OutGameServer->Clients.OnClientAccountCreatedCallbackTable.RegisterCallback(WorldSubsystem::OnClientAccountCreated, &OutGameServer->World);
     
-    if (!OutGameServer->WorldSynchronization.Initialize(OutGameServer->Memory, OutGameServer->Clients, OutGameServer->World, 1))
+    if (!OutGameServer->WorldSynchronization.Initialize(OutGameServer->Memory, OutGameServer->Clients, OutGameServer->World))
     {
         std::cerr << "Fatal Error when initializing Server: Couldn't initialize World Synchronization Subsystem.\n";
         return false;
