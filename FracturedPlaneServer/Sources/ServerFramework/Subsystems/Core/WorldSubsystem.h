@@ -33,8 +33,14 @@ struct Cluster
         Vec2<uint16_t> Position; // Position of the North-Western Corner of the island (zone coordinates [0, 0]).
         Vec2<uint16_t> Bounds; // Rectangular bounds of the island encapsulating all of its zones.
 
-        FPCore::World::ZoneDef* Zones; // Contains all zones in a contiguous sequence. TODO: Eliminate void zones from this array.
+        int64_t RandomGenSeed; // An Island with the same bounds and the same seed will generate the same land.
+
+        FPCore::World::ZoneDef* Zones; // Contains all zone definitions in a contiguous sequence. TODO: Eliminate void zones from this array.
         size_t ZoneCount;
+
+        // TILE DATA
+        byte* VoidTileBitmask; // Bits for whether each tile is void or not. Stored contiguously on a per zone basis, line by line.
+        uint16_t* TileCenterElevations;
     };
 
     // Islands buffer.

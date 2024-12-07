@@ -29,24 +29,40 @@ namespace FPCore
 
         typedef uint64_t ClusterID;
         typedef uint64_t IslandID;
-
         // Defines the size of one side of a zone in tiles
-        constexpr uint16_t ZONE_SIZE_TILES = 100;
-        constexpr uint16_t TILE_SIZE_METERS = 25;
+        constexpr uint16_t ZONE_SIZE_TILES = 100; // 2.5km x 2.5km square
+        constexpr uint32_t TILES_PER_ZONE = ZONE_SIZE_TILES * ZONE_SIZE_TILES;
+        constexpr uint16_t TILE_SIZE_METERS = 25; // 25m x 25m square
 
-        // Once fully constituted this defines the entirety of the data relevant to a Zone, given its Island is known.
+        /*
+            Defines the core properties of a Zone as a whole, not including any possible extensions to it such as through the Site system.
+            The exact contents of a zone exists in the form of tiles stored separately within the World structure.
+            This is used in representation layers - actual data storage format may be different especially on the server.
+        */
         struct ZoneDef
         {
-            // Bitmask defining whether each tile is a void tile or not.
-            byte VoidTileBitMask[ZONE_SIZE_TILES * ZONE_SIZE_TILES / 8];
+            uint16_t MinimumElevation;
+            uint16_t MaximumElevation;
+
+            uint16_t AverageTemperature;
+            uint16_t AverageRainfall;
+
 
             /*  TODO
-            * 
-            *   Elevation per tile
             *   Climate & Weather
             *   Natural resources
             *   Security level
             */
+        };
+
+        /*
+            Defines the core properties of a Tile, not including any possible extensions to it such as structures or present entities.
+            This is used in representation layers - actual data storage format may be different especially on the server.
+        */
+        struct TileDef
+        {
+            uint16_t CenterElevation; // Elevation at the center of the Tile. 
+            uint8_t DirtRatio; // 0 = Exposed rock, 256 = Fully covered in pure dirt.
         };
 
         namespace Entities

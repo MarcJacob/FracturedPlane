@@ -39,6 +39,8 @@ enum class EAuthentificationState : uint8
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAuthenticationStateChangedDelegate, EAuthentificationState, State);
 DECLARE_DELEGATE_OneParam(FOnPacketReceivedDelegate, FPCore::Net::PacketHead&);
 
+class UFPWorldState;
+
 UCLASS()
 class FRACTUREDPLANECLIENTCORE_API UFPMasterServerConnectionSubsystem : public UGameInstanceSubsystem
 {
@@ -49,6 +51,9 @@ public:
 	virtual void Deinitialize() override;
 
 	void Update();
+
+	// Assigns a World State object as target of all types of World Sync messages from the server.
+	void AssignTargetWorldStateObject(UFPWorldState* WorldStateObject);
 
 	// Attempts to connect to Master Server. Returns true if successful, false if not. If unsuccessful, FailReason will contain the reason
 	// for failure.
@@ -86,10 +91,19 @@ private:
 	// for any reason.
 	void OnConnectionLost();
 	
+	// Net properties
 	FSocket* ConnectionSocket;
+	FPCore::Net::PacketBodyFuncMap PacketBodyTypeFunctionsMap;
+
+	// If assigned, will update the linked World State object with data received from the Master Server.
+	TWeakObjectPtr<UFPWorldState> TargetWorldStateObject;
 
 	// Packet handlers
 	void HandleAuthenticationResponsePacket(FPCore::Net::PacketHead& Packet);
 
-	FPCore::Net::PacketBodyFuncMap PacketBodyTypeFunctionsMap;
+	void OnWorldZoneSyncPacketReceived(FPCore::Net::PacketHead& Packet);
+
+	
+
+	
 };

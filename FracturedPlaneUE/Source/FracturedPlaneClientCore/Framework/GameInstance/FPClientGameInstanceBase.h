@@ -4,10 +4,61 @@
 #include "Engine/GameInstance.h"
 #include "FPMasterServerConnectionSubsystem.h"
 
-#include "Actors/World/LandscapeActor.h"
+#include "FPCore/World/World.h"
+
 #include "FPClientGameInstanceBase.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(FLogFPClientGameInstance, Log, All);
+
+struct Zone
+{
+	FPCore::World::Coordinates Coordinates;
+	FPCore::World::ZoneDef ZoneDef;
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWorldStateZoneChangeDelegate);
+
+/*
+	Contains the game's current known World State information, including Landscape, entity positions and such. 
+	When playing online, this is maintained by data received from the server. When playing solo missions, this is set and updated by simplified
+	solo play mechanics.
+
+	This abstracts away the source of World State data - the Game Instance is in charge of plugging whatever source is necessary into it, and receivers can
+	read from it directly or subscribe to various events.
+
+	As of now it only supports loading a single Island at a time.
+	TODO: Allow loading more islands, probably in a simplified format so their presence can be suggested through their location and shape but without
+	superfluous details.
+*/
+UCLASS(BlueprintType)
+class UFPWorldState : public UObject
+{
+	GENERATED_BODY()
+public:
+
+	// General purpose event called when any change has come to the Zone the World State has "focused". Usually happens when the user changes which zone they
+	// view or if a major event changed the zone's landscape.
+	UPROPERTY(BlueprintAssignable)
+	FOnWorldStateZoneChangeDelegate OnWorldStateZoneChange;
+
+	// Bounds of currently loaded island.
+	FIntVector2 IslandBoundsSize = FIntVector2::ZeroValue;
+	
+	// Contains all loaded zones, associated with their Island-space coordinates.
+	TArray<Zone> Zones = {};
+
+	// Defines the ID of the currently "viewed" zone, meaning which zone we can currently see at the Tile level. -1 if None.
+	int ViewedZoneID = -1;
+	
+	// Contains the definitions of all tiles within the viewed zone, if any, including void tiles (check VoidTileFlagBuffer to check if a tile is void).
+	TArray<FPCore::World::TileDef> ViewedZoneTileDefsBuffer = {};
+	
+	// For every tile in viewed zone, indicates whether it is void or an actual landscape tile.
+	TArray<bool> VoidTileFlagBuffer = {};
+
+	int GetTileIDForCoordinates(int X, int Y) { return X * FPCore::World::ZONE_SIZE_TILES + Y; }
+
+};
 
 /**
 * Represents the current global state of the game client or server, which determines what to do in certain circumstances.
@@ -67,9 +118,10 @@ public:
 
 	UPROPERTY(BlueprintAssignable)
 	FOnGameStateChangedDelegate OnGameStateChanged;
-
-	TArray<TArray<bool>> VoidTileGrid;
 	
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UFPWorldState> GameWorldState;
+
 private:
 
 	// State of the Game Client. Allows contextual reaction to many events.
@@ -84,6 +136,4 @@ private:
 	
 	UFUNCTION()
 	void OnMasterServerAuthenticationStateChanged(EAuthentificationState State);
-	
-	void OnWorldZoneSyncPacketReceived(FPCore::Net::PacketHead& Packet);
 };

@@ -40,8 +40,8 @@ void NetPacketReceptionTable_t::HandlePacket(FPCore::Net::PacketHead& Packet)
 
 size_t GetRequiredServerMemory()
 {
-    // Ask for enough memory to hold Server State Data + 1GB
-    return sizeof(ServerStateData) + static_cast<size_t>(1024 * 1024 * 1024 * 1);
+    // Ask for enough memory to hold Server State Data + 2GB
+    return sizeof(ServerStateData) + static_cast<size_t>(1024 * 1024 * 1024) * 2;
 }
 
 // PLATFORM CALL
@@ -96,8 +96,8 @@ bool InitializeServer(const ServerPlatform& Platform, GameServerPtr& OutGameServ
     }
 
     IslandGenerationInfo GenInfo;
-    GenInfo.BoundsSize = { 256, 256 };
-    GenInfo.ZoneCount = 256 * 256;
+    GenInfo.BoundsSize = { 10, 10 };
+    GenInfo.ZoneCount = 10;
     if (!OutGameServer->World.GenerateIsland(OutGameServer->Memory, GenInfo))
     {
         std::cerr << "Fatal Error when initializing Server: Couldn't generate Dev Island !\n";

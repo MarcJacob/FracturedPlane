@@ -80,24 +80,42 @@ bool WorldSubsystem::GenerateIsland(MemorySubsystem& Memory, IslandGenerationInf
     NewIsland.Bounds = GenInfo.BoundsSize;
 
     // Allocate zones
+    // TODO: Take hinted Zone Count in case we don't want to fill in the bounds of the island.
     NewIsland.Zones = Memory.AllocateZeroed<FPCore::World::ZoneDef>(GenInfo.BoundsSize.X * GenInfo.BoundsSize.Y);
-    NewIsland.ZoneCount = GenInfo.ZoneCount;
+    NewIsland.ZoneCount = GenInfo.BoundsSize.X * GenInfo.BoundsSize.Y;
+
+    // Allocate tiles (TODO: We shouldn't be allocating this much memory at once. Generation should be handled zone by zone, on demand).
+    NewIsland.VoidTileBitmask = Memory.AllocateZeroed<byte>(GenInfo.BoundsSize.X * GenInfo.BoundsSize.Y * FPCore::World::TILES_PER_ZONE / 8);
+    NewIsland.TileCenterElevations = Memory.AllocateZeroed<uint16_t>(GenInfo.BoundsSize.X * GenInfo.BoundsSize.Y * FPCore::World::TILES_PER_ZONE);
 
     // Generate zone 0,0 at random TODO: Zone generation should only work if the zone is "opened" by founding a site or a mission takes place there.
-    FPCore::World::Coordinates TileCoords = { 0, 0 };
-    float RandFactor = static_cast<float>(rand());
-    for (TileCoords.X = 0; TileCoords.X < FPCore::World::ZONE_SIZE_TILES; TileCoords.X++)
+    NewIsland.RandomGenSeed = time(nullptr);
+    srand(NewIsland.RandomGenSeed);
+
+    // This should definitely get multithreaded
+    FPCore::World::Coordinates ZoneCoords = { 0, 0 };
+    for (ZoneCoords.X = 0; ZoneCoords.X < NewIsland.Bounds.X; ZoneCoords.X++)
     {
-        for (TileCoords.Y = 0; TileCoords.Y < FPCore::World::ZONE_SIZE_TILES; TileCoords.Y++)
+        for (ZoneCoords.Y = 0; ZoneCoords.Y < NewIsland.Bounds.Y; ZoneCoords.Y++)
         {
-            float Epicness = 1.f;
-            if (Epicness > 0.f)
+            size_t ZoneStartBitIndex = (ZoneCoords.X * NewIsland.Bounds.Y + ZoneCoords.Y) * FPCore::World::TILES_PER_ZONE;
+
+            FPCore::World::Coordinates TileCoords = { 0, 0 };
+            for (TileCoords.X = 0; TileCoords.X < FPCore::World::ZONE_SIZE_TILES; TileCoords.X++)
             {
-                size_t BitIndex = TileCoords.X * NewIsland.Bounds.Y + TileCoords.Y;
-                NewIsland.Zones[0].VoidTileBitMask[BitIndex / 8] += 1 << (BitIndex % 8);
+                for (TileCoords.Y = 0; TileCoords.Y < FPCore::World::ZONE_SIZE_TILES; TileCoords.Y++)
+                {
+                    float Epicness = 1.f;
+                    if (Epicness > 0.f)
+                    {
+                        size_t BitIndex = ZoneStartBitIndex + TileCoords.X * FPCore::World::ZONE_SIZE_TILES + TileCoords.Y;
+                        NewIsland.VoidTileBitmask[BitIndex / 8] += 1 << (BitIndex % 8);
+                    }
+                }
             }
         }
     }
+    
 
     // Update Gen Info data
     GenInfo.ZoneCount = NewIsland.ZoneCount;

@@ -41,7 +41,8 @@ struct WorldSynchronizationSubsystem
 
     void SyncClients();
 
-    bool SynchronizeLandscape(Client& ClientToSync, ClientSyncState& SyncState);
+    // Triggers synchronization of a Client's current viewed zone's landscape.
+    bool SynchronizeZoneLandscape(Client& ClientToSync, ClientSyncState& SyncState);
     
     // Handler for On Client Connected event in Clients Subsystem.
     // Context = pointer to this structure.

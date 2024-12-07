@@ -14,7 +14,8 @@ UFPClientGameInstanceBase* UFPClientGameInstanceBase::GetFPClientGameInstance(UO
 
 UFPClientGameInstanceBase::UFPClientGameInstanceBase(const FObjectInitializer& Init)
 {
-	
+	// Create World State Object
+	GameWorldState = CreateDefaultSubobject<UFPWorldState>(TEXT("World State"));
 }
 
 void UFPClientGameInstanceBase::Init()
@@ -29,9 +30,9 @@ void UFPClientGameInstanceBase::Init()
 	// Register Master Server-related events.
 	MasterServerSubsystem->OnAuthenticationStateChanged.AddDynamic(this,
 	&UFPClientGameInstanceBase::OnMasterServerAuthenticationStateChanged);
-	
-	MasterServerSubsystem->OnPacketReceived[static_cast<int>(FPCore::Net::PacketBodyType::WORLD_SYNC_LANDSCAPE)].BindUObject
-	(this, &UFPClientGameInstanceBase::OnWorldZoneSyncPacketReceived);
+
+	// Assign World State object as target for Master Server Subsystem. TODO: Don't do that right away, in case the user wishes to play solo tutorial missions.
+	MasterServerSubsystem->AssignTargetWorldStateObject(GameWorldState);
 }
 
 void UFPClientGameInstanceBase::Tick(float DeltaTime)
@@ -127,33 +128,5 @@ void UFPClientGameInstanceBase::OnMasterServerAuthenticationStateChanged(EAuthen
 
 		ReturnToMainMenuReason = TEXT("Connection to Master Server lost.");
 		ReturnToMainMenu();
-	}
-}
-
-void UFPClientGameInstanceBase::OnWorldZoneSyncPacketReceived(FPCore::Net::PacketHead& Packet)
-{
-	VoidTileGrid.Empty();
-	
-	// Fill in grid from received packet.
-	const FPCore::Net::PacketBodyDef_ZoneLandscapeSync& LandscapeSyncPacketData = Packet.ReadBodyDef<FPCore::Net::PacketBodyDef_ZoneLandscapeSync>();
-
-	VoidTileGrid.SetNum(256);
-	for(int Column = 0; Column < 256; Column++)
-	{
-		VoidTileGrid[Column].SetNum(256);
-	}
-
-	for(int X = 0; X < 256; X++)
-	{
-		for(int Y = 0; Y < 256; Y++)
-		{
-			int BitIndex = X * 256 + Y;
-			VoidTileGrid[X][Y] = LandscapeSyncPacketData.VoidTileBitflag[BitIndex / 8] & (1 << BitIndex % 8);
-		}
-	}
-	
-	for(TActorIterator<ALandscapeActor> It(GetWorld()); It; ++It)
-	{
-		It->RefreshLandscape(VoidTileGrid);
 	}
 }

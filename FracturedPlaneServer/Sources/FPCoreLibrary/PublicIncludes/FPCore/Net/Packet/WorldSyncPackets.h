@@ -20,7 +20,7 @@ namespace FPCore
             // Coordinates of reference for north-western point of zone. Useful when showing multiple zones.
             World::Coordinates ZoneCoordinates;
 
-            byte VoidTileBitflag[256 * 256 / 8]; // For each tile, bit is set to 0 if void, 1 if land.
+            byte VoidTileBitflag[World::TILES_PER_ZONE / 8]; // For each tile, bit is set to 0 if void, 1 if land.
         };
 
         size_t GetMarshalledSizeFunc_WorldSyncLandscape(void* BodyDef);

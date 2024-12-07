@@ -39,19 +39,19 @@ void WorldSynchronizationSubsystem::SyncClients()
 
         if (ClientSyncStates[ClientID].bRequiresZoneUpdate)
         {
-            SynchronizeLandscape(LinkedClientsSubsystem->Clients[ClientID], ClientSyncStates[ClientID]);
+            SynchronizeZoneLandscape(LinkedClientsSubsystem->Clients[ClientID], ClientSyncStates[ClientID]);
             ClientSyncStates[ClientID].bRequiresZoneUpdate = false;
         }
     }
 }
 
-bool WorldSynchronizationSubsystem::SynchronizeLandscape(Client& ClientToSync, ClientSyncState& SyncState)
+bool WorldSynchronizationSubsystem::SynchronizeZoneLandscape(Client& ClientToSync, ClientSyncState& SyncState)
 {
     // Synchronize Zone at 0,0 of Island 0 in Cluster 0.
     FPCore::Net::PacketBodyDef_ZoneLandscapeSync LandscapeSyncPacketData = {};
     LandscapeSyncPacketData.ZoneCoordinates = {0, 0};
 
-    memcpy(LandscapeSyncPacketData.VoidTileBitflag, LinkedWorldSubsystem->IslandClusters[0].Islands[0].Zones[0].VoidTileBitMask, sizeof(LandscapeSyncPacketData.VoidTileBitflag));
+    memcpy(LandscapeSyncPacketData.VoidTileBitflag, LinkedWorldSubsystem->IslandClusters[0].Islands[0].VoidTileBitmask, sizeof(LandscapeSyncPacketData.VoidTileBitflag));
 
     // Send full landscape data to Client's connection and return whether writing the packet for sending was a success.
     return LinkedClientsSubsystem->ServerConnectionsSubsystem->WriteOutgoingPacket(ClientToSync.LinkedConnection->ID, 

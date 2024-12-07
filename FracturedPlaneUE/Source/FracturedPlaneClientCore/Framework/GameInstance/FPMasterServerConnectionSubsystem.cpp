@@ -9,6 +9,8 @@
 
 #include "FPCore/Net/Packet/PacketBodyTypeFunctionDefs.h"
 
+#include "FPClientGameInstanceBase.h"
+
 DEFINE_LOG_CATEGORY(FLogFPClientServerConnectionSubsystem);
 
 void UFPMasterServerConnectionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -18,6 +20,8 @@ void UFPMasterServerConnectionSubsystem::Initialize(FSubsystemCollectionBase& Co
 	memset(OnPacketReceived, 0, sizeof(OnPacketReceived));
 	
 	OnPacketReceived[static_cast<int>(FPCore::Net::PacketBodyType::AUTHENTICATION)].BindUObject(this, &UFPMasterServerConnectionSubsystem::HandleAuthenticationResponsePacket);
+	OnPacketReceived[static_cast<int>(FPCore::Net::PacketBodyType::WORLD_SYNC_LANDSCAPE)].BindUObject(this, &UFPMasterServerConnectionSubsystem::OnWorldZoneSyncPacketReceived);
+	
 	FPCore::Net::InitializePacketBodyTypeFunctionsDefMap(PacketBodyTypeFunctionsMap);
 }
 
@@ -59,6 +63,11 @@ void UFPMasterServerConnectionSubsystem::Update()
 			OnConnectionLost();
 		}
 	}
+}
+
+void UFPMasterServerConnectionSubsystem::AssignTargetWorldStateObject(UFPWorldState* WorldStateObject)
+{
+	TargetWorldStateObject = WorldStateObject;
 }
 
 
@@ -239,4 +248,25 @@ void UFPMasterServerConnectionSubsystem::HandleAuthenticationResponsePacket(FPCo
 		Disconnect();
 	}
 	BroadcastAuthenticationState();
+}
+
+void UFPMasterServerConnectionSubsystem::OnWorldZoneSyncPacketReceived(FPCore::Net::PacketHead& Packet)
+{
+	// Fill in currently loaded Zone Tile Grid from received packet.
+	const FPCore::Net::PacketBodyDef_ZoneLandscapeSync& LandscapeSyncPacketData = Packet.ReadBodyDef<FPCore::Net::PacketBodyDef_ZoneLandscapeSync>();
+
+	if (!TargetWorldStateObject.IsValid())
+	{
+		return;
+	}
+
+	// Void buffer, reading the received data bit by bit.
+	TargetWorldStateObject->VoidTileFlagBuffer.SetNumZeroed(FPCore::World::TILES_PER_ZONE, true);
+	for (int TileID = 0; TileID < FPCore::World::TILES_PER_ZONE; TileID++)
+	{
+		TargetWorldStateObject->VoidTileFlagBuffer[TileID] = LandscapeSyncPacketData.VoidTileBitflag[TileID / 8] & (1 << TileID % 8);
+	}
+
+	// Call Zone Change event.
+	TargetWorldStateObject->OnWorldStateZoneChange.Broadcast();
 }
