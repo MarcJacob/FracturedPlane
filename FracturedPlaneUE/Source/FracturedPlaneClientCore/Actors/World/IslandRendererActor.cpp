@@ -71,8 +71,10 @@ void AIslandRendererActor::BeginPlay()
 		FPClientGameInstance->GameWorldState->OnWorldStateIslandChange.AddDynamic(this, &AIslandRendererActor::OnWorldStateIslandChange);
 	
 		// Assuming that the World State has been updated before this Begin Play function was called, we need to call the event handler now for the first refresh.
-		// If the assumption is wrong, the world state will be empty and thus the call will be a negligible waste.
-		OnWorldStateIslandChange();
+		if (FPClientGameInstance->GameWorldState->Zones.Num() > 0)
+		{
+			OnWorldStateIslandChange();
+		}
 	}
 }
 

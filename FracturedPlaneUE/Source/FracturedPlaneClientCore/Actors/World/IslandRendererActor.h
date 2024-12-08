@@ -40,6 +40,7 @@ protected:
 
 	virtual void BeginPlay() override;
 
+	UFUNCTION()
 	void OnWorldStateIslandChange();
 
 	void RefreshZonesMesh(FIntVector2 BoundsSize, TArray<Zone> Zones);
