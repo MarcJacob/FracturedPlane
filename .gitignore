@@ -53,6 +53,9 @@ FracturedPlaneUE/Plugins/**/Binaries/*
 # Builds
 FracturedPlaneUE/Build/*
 
+#enc temp
+FracturedPlaneUE/enc_temp_folder/*
+
 # Whitelist PakBlacklist-<BuildConfiguration>.txt files
 !FracturedPlaneUE/Build/*/
 FracturedPlaneUE/Build/*/**

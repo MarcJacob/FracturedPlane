@@ -18,30 +18,26 @@ public:
 
 	AZoneLandscapeActor();
 	
-	virtual void BeginPlay() override;
-	
 	virtual void OnConstruction(const FTransform& Transform) override;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Zone Landscape Actor")
+	TObjectPtr<UProceduralMeshComponent> ProceduralMeshComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Zone Landscape Actor")
+	FColor LandscapeVertexColor;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Zone Landscape Actor")
+	TObjectPtr<UMaterial> ProcMeshMaterial;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Zone Landscape Actor")
+	float TileSize = 100.f;
+
+protected:
+
+	virtual void BeginPlay() override;
 
 	UFUNCTION()
 	void OnWorldStateZoneChanged();
 
 	void RefreshLandscape(TArray<bool> VoidTileFlags);
-	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Landscape Actor")
-	TObjectPtr<UProceduralMeshComponent> ProceduralMeshComponent;
-	
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Landscape Actor")
-	TObjectPtr<UTexture2D> LandscapeTexture;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Landscape Actor")
-	FColor LandscapeVertexColor;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Landscape Actor")
-	FColor VoidVertexColor;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Landscape Actor")
-	TObjectPtr<UMaterial> ProcMeshMaterial;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Landscape Actor")
-	float TileSize = 100.f;
 };

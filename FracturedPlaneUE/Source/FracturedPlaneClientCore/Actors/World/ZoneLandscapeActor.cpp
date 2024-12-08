@@ -5,6 +5,8 @@
 
 AZoneLandscapeActor::AZoneLandscapeActor()
 {
+	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root Component"));
+
 	ProceduralMeshComponent = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("Procedural Mesh Component"));
 	ProceduralMeshComponent->SetupAttachment(RootComponent);
 }
@@ -13,7 +15,26 @@ void AZoneLandscapeActor::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
-	OnWorldStateZoneChanged();
+	UFPClientGameInstanceBase* FPClientGameInstance = UFPClientGameInstanceBase::GetFPClientGameInstance(this);
+	if (IsValid(FPClientGameInstance))
+	{
+		// Run a full refresh of the Zone as if the associated World State data had changed.
+		OnWorldStateZoneChanged();
+	}
+	else
+	{
+		// Run a full refresh of the Zone using Placeholder Data
+
+		// Full Zone (no void)
+		TArray<bool> VoidTileFlags;
+		VoidTileFlags.SetNum(FPCore::World::TILES_PER_ZONE);
+		for (int i = 0; i < FPCore::World::TILES_PER_ZONE; i++)
+		{
+			VoidTileFlags[i] = true;
+		}
+
+		RefreshLandscape(VoidTileFlags);
+	}
 }
 
 void AZoneLandscapeActor::BeginPlay()
@@ -31,25 +52,7 @@ void AZoneLandscapeActor::BeginPlay()
 void AZoneLandscapeActor::OnWorldStateZoneChanged()
 {
 	UFPClientGameInstanceBase* FPClientGameInstance = UFPClientGameInstanceBase::GetFPClientGameInstance(this);
-	
-	if (IsValid(FPClientGameInstance))
-	{
-		RefreshLandscape(FPClientGameInstance->GameWorldState->VoidTileFlagBuffer);
-	}
-	else
-	{
-		// Use Placeholder Data
-
-		// Full Zone (no void)
-		TArray<bool> VoidTileFlags;
-		VoidTileFlags.SetNum(FPCore::World::TILES_PER_ZONE);
-		for (int i = 0; i < FPCore::World::TILES_PER_ZONE; i++)
-		{
-			VoidTileFlags[i] = true;
-		}
-
-		RefreshLandscape(VoidTileFlags);
-	}
+	RefreshLandscape(FPClientGameInstance->GameWorldState->VoidTileFlagBuffer);
 }
 
 void AZoneLandscapeActor::RefreshLandscape(TArray<bool> VoidTileFlags)
@@ -119,5 +122,7 @@ void AZoneLandscapeActor::RefreshLandscape(TArray<bool> VoidTileFlags)
 		TArray<FProcMeshTangent>(), false);
 
 	ProceduralMeshComponent->SetMaterial(0, ProcMeshMaterial);
-	
+
+	// Center Mesh Component around Root
+	ProceduralMeshComponent->SetRelativeLocation(FVector(-FPCore::World::ZONE_SIZE_TILES * TileSize / 2, -FPCore::World::ZONE_SIZE_TILES * TileSize / 2, 0.f));
 }

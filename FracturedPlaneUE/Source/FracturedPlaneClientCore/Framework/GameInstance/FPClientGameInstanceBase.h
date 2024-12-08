@@ -17,6 +17,8 @@ struct Zone
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWorldStateZoneChangeDelegate);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWorldStateIslandChangeDelegate);
+
 
 /*
 	Contains the game's current known World State information, including Landscape, entity positions and such. 
@@ -40,6 +42,10 @@ public:
 	// view or if a major event changed the zone's landscape.
 	UPROPERTY(BlueprintAssignable)
 	FOnWorldStateZoneChangeDelegate OnWorldStateZoneChange;
+
+	// General purpose event called when any change has come to the Island contained within the World State.
+	UPROPERTY(BlueprintAssignable)
+	FOnWorldStateIslandChangeDelegate OnWorldStateIslandChange;
 
 	// Bounds of currently loaded island.
 	FIntVector2 IslandBoundsSize = FIntVector2::ZeroValue;
