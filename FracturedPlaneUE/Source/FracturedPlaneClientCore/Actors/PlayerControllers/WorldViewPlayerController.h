@@ -63,12 +63,12 @@ public:
 	// Abstract Zoom Level representing how close or far the view should be positioned.
 	// Also used for detecting transitions, where 1.f is the limit for switching to higher level view, and 0.f the limit for switching to lower level view.
 	// Upon switching View mode, this will be reset to the halfway point of 0.5.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "World View")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "World View")
 	float ZoomLevel = 0.5f;
 
 	// When true, view mode changes will be stalled.
 	// Usually set while processing a view mode change animation & load.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "World View")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "World View")
 	bool bViewModeChangeLocked = false;
 
 	// General-Purpose delegate called when changing World View Mode for any reason.

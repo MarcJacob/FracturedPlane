@@ -83,9 +83,6 @@ void AWorldViewPlayerController::SwitchToMode(EWorldViewMode NewViewMode)
 	EWorldViewMode Previous = ViewMode;
 	ViewMode = NewViewMode;
 
-	// Reset Zoom Level to default value.
-	ZoomLevel = 0.5f;
-
 	// Switch to appropriate mapping context
 	UEnhancedInputLocalPlayerSubsystem* Input = GetLocalPlayer()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>();
 	
